@@ -1,6 +1,96 @@
-:root { --app-bg: #f6f8fb; --app-text: #152033; --app-surface: #fff; --app-border: #e3e7ef; --app-muted: #748096; --header-height: 68px; }
-html[data-theme='dark'] { --app-bg: #151619; --app-text: #e9eaee; --app-surface: #25272c; --app-border: #30333a; --app-muted: #9da2ae; }
+:root {
+  --app-bg: #f6f8fb;
+  --app-text: #152033;
+  --app-surface: #fff;
+  --app-surface-muted: #f8fafc;
+  --app-border: #e3e7ef;
+  --app-muted: #748096;
+  --app-primary: #35d07f;
+  --app-primary-strong: #147b48;
+  --app-control-bg: #f8fafc;
+  --app-control-text: #253149;
+  --app-control-label: #526078;
+  --app-control-muted: #6f7b8f;
+  --app-control-border: #cfd6e1;
+  --app-control-hover-border: #8b95a6;
+  --app-control-disabled: #98a2b3;
+  --app-control-placeholder: #7a869a;
+  --app-overlay: #fff;
+  --app-overlay-border: #e3e7ef;
+  --app-overlay-hover: #f1f4f8;
+  --app-overlay-item: #344158;
+  --app-separator: #e3e7ef;
+  --app-chip-bg: #edf1f6;
+  --app-danger: #b42318;
+  --app-danger-bg: #fef3f2;
+  --app-danger-border: #fecdca;
+  --app-warning: #915c08;
+  --app-warning-bg: #fffaeb;
+  --app-warning-border: #fedf89;
+  --app-info: #175cd3;
+  --app-info-bg: #eff8ff;
+  --app-info-border: #b2ddff;
+  --app-success: #147b48;
+  --app-success-bg: #ecfdf3;
+  --app-success-border: #abefc6;
+  --app-radius-sm: 8px;
+  --app-radius-md: 12px;
+  --app-radius-lg: 16px;
+  --app-space-sm: 10px;
+  --app-space-md: 16px;
+  --app-space-lg: 20px;
+  --app-space-xl: 24px;
+  --header-height: 68px;
+}
+html[data-theme='dark'] {
+  --app-bg: #151619;
+  --app-text: #e9eaee;
+  --app-surface: #25272c;
+  --app-surface-muted: #202226;
+  --app-border: #30333a;
+  --app-muted: #9da2ae;
+  --app-primary-strong: #55df91;
+  --app-control-bg: #292c32;
+  --app-control-text: #d7dbe3;
+  --app-control-label: #d7dbe3;
+  --app-control-muted: #9aa2b0;
+  --app-control-border: #454b56;
+  --app-control-hover-border: #737d8d;
+  --app-control-disabled: #7f8795;
+  --app-control-placeholder: #858d9b;
+  --app-overlay: #25272c;
+  --app-overlay-border: #383b43;
+  --app-overlay-hover: #30333a;
+  --app-overlay-item: #c6cad3;
+  --app-separator: #3b414c;
+  --app-chip-bg: #343a44;
+  --app-danger: #ffb4ab;
+  --app-danger-bg: #392123;
+  --app-danger-border: #723b3d;
+  --app-warning: #f2c66d;
+  --app-warning-bg: #332a18;
+  --app-warning-border: #65502b;
+  --app-info: #9ec5ff;
+  --app-info-bg: #1d2b3b;
+  --app-info-border: #344f70;
+  --app-success: #78dfa1;
+  --app-success-bg: #1a3024;
+  --app-success-border: #315b41;
+}
 body { background: var(--app-bg); color: var(--app-text); transition: background-color .2s ease, color .2s ease; }
+.q-card:not(.dashboard-card):not(.sidebar-card):not(.project-content-card) { border-radius: var(--app-radius-md); }
+.q-card--bordered { border-color: var(--app-border); }
+.q-btn:not(.q-btn--round) { border-radius: var(--app-radius-sm); }
+.q-field--outlined .q-field__control { border-radius: var(--app-radius-sm); }
+.q-field--outlined .q-field__control:before { border-color: var(--app-control-border); }
+.q-field--outlined:hover .q-field__control:before { border-color: var(--app-control-hover-border); }
+.q-field--focused .q-field__control:after { border-color: var(--app-primary); }
+.q-banner { border-radius: var(--app-radius-md); }
+.q-chip { border-radius: 6px; color: var(--app-control-text); background: var(--app-chip-bg); }
+.q-menu { color: var(--app-text); background: var(--app-overlay); border: 1px solid var(--app-overlay-border); }
+.q-menu .q-item { color: var(--app-overlay-item); }
+.q-menu .q-item:hover { background: var(--app-overlay-hover); }
+.q-separator { background: var(--app-separator); }
 
 @keyframes card-in { from { opacity: 0; transform: translateY(16px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes hero-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
@@ -98,7 +188,6 @@ html[data-rounded-project-icons='true'] .brand-mark.has-image { border-radius: 1
 .project-type { position: absolute; right: 16px; top: 16px; }
 .project-description { min-height: 48px; line-height: 1.5; }
 .featured-card { border-color: #c4b5fd; box-shadow: 0 12px 30px rgba(79, 70, 229, .12); }
-.empty-state { padding: 44px 24px; border: 1px solid #cbd5e1; border-radius: 16px; background: #fff; }
 .project-homepage { width: 100%; min-height: 420px; border: 0; background: #fff; }
 
 .project-card {
@@ -252,7 +341,6 @@ html[data-theme='light'] .view-toggle .q-btn.q-btn--active { color: #fff !import
 /* A selected value that the current result no longer offers stays visible but muted, and remains clickable so it can be unchecked. */
 .option-list .q-checkbox.is-unavailable { opacity: .62; }
 .option-list .q-checkbox.is-unavailable .q-checkbox__label { color: #7d828e; }
-.discover-page .empty-state { border-color: #2f3339; color: #aeb2bc; background: #1a1c20; }
 /* Opt-in scroll model ('results'): the two columns are given a height that is deliberately smaller than the remaining viewport, so
    only the result list scrolls inside them and the layout never reaches past the bottom of the screen. The page still scrolls
    normally above them; the default ('page') leaves the whole document scrolling. */
@@ -415,13 +503,12 @@ html[data-theme='dark'] .project-licenses-card { --license-accent: #65ce8b; }
 .version-download-option { gap: 18px; }
 .version-download-file { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 4px 0; }
 .version-download-file > span { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-text); font-size: .82rem; }
-.license-editor { padding: 14px; border: 1px solid var(--app-border); border-radius: 12px; background: color-mix(in srgb, var(--app-surface) 94%, var(--app-text)); }
-.license-editor-card { margin-top: 12px; padding: 14px; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-surface); }
-.gallery-editor { padding: 14px; border: 1px solid var(--app-border); border-radius: 12px; background: color-mix(in srgb, var(--app-surface) 94%, var(--app-text)); }
+.form-item-list { display: grid; gap: var(--app-space-md); min-width: 0; }
+.gallery-editor { display: grid; gap: var(--app-space-md); min-width: 0; }
 .gallery-editor-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.gallery-editor-item { position: relative; min-width: 0; padding: 6px; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-surface); }
-.gallery-editor-item .q-img { overflow: hidden; border-radius: 7px; }
-.gallery-editor-placeholder { display: grid; place-items: center; height: 112px; border-radius: 7px; color: var(--app-muted); background: color-mix(in srgb, var(--app-surface) 82%, var(--app-text)); }
+.gallery-editor-item { position: relative; display: grid; gap: 8px; min-width: 0; padding: 8px; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); }
+.gallery-editor-item .q-img { overflow: hidden; border-radius: var(--app-radius-sm); }
+.gallery-editor-placeholder { display: grid; place-items: center; height: 112px; border-radius: var(--app-radius-sm); color: var(--app-muted); background: var(--app-surface-muted); }
 .gallery-editor-remove { position: absolute; z-index: 1; top: 10px; right: 10px; opacity: .92; }
 @media (max-width: 700px) { .gallery-editor-grid, .project-gallery-expanded { grid-template-columns: 1fr; } }
 .changelog-list { display: grid; gap: 22px; }
@@ -491,57 +578,46 @@ html[data-theme='light'] .q-menu .language-active .q-item__label { color: #15995
 html[data-theme='light'] .q-menu .language-active .q-icon { color: #159957 !important; }
 html[data-theme='light'] .download-source-menu .q-item:hover { background: #f0f4f8; }
 .project-editor-page { min-height: calc(100vh - 68px); }
-.editor-shell { overflow: hidden; border-radius: 16px; }
-.editor-tabs { min-height: 58px; padding: 0 10px; }
+.editor-shell { overflow: hidden; border-radius: var(--app-radius-lg); background: var(--app-surface); }
+.editor-tabs { min-height: 58px; padding: 0 10px; color: var(--app-muted); background: var(--app-surface-muted); }
 .editor-tabs .q-tab { min-height: 58px; }
+.editor-tabs .q-tab--active { color: var(--app-primary-strong); }
 .editor-panels { background: transparent; }
+.editor-panels .q-tab-panel { padding: 24px; }
+.editor-expansion-item { min-width: 0; overflow: hidden; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); color: var(--app-text); background: var(--app-surface); }
+.editor-expansion-item .q-expansion-item__container { border-radius: inherit; }
+.editor-expansion-item .q-expansion-item__content { color: var(--app-text); }
+.editor-expansion-item .q-expansion-item__toggle-icon { color: var(--app-muted); }
 .member-search-select .q-menu { max-height: min(360px, 55vh); }
-.member-invite-card { overflow: visible; }
-.member-invite-card .q-form { align-items: stretch; }
-.member-invite-card .q-btn { min-height: 40px; }
 /* QSelect menus are teleported to body, so keep their contrast rules global. */
 html[data-theme='dark'] .q-menu,
 html[data-theme='dark'] .q-menu .q-item {
-  color: #e5e7eb;
-  background: #25272c;
+  color: var(--app-text);
+  background: var(--app-overlay);
 }
 html[data-theme='dark'] .q-menu .q-item:hover,
 html[data-theme='dark'] .q-menu .q-item--active {
-  color: #ffffff;
-  background: #303844;
+  color: var(--app-text);
+  background: var(--app-overlay-hover);
 }
 html[data-theme='dark'] .q-menu .q-item__label,
 html[data-theme='dark'] .q-menu .q-item__label--caption,
 html[data-theme='dark'] .q-menu .text-grey-7 {
-  color: #d1d5db !important;
+  color: var(--app-overlay-item) !important;
 }
 html[data-theme='light'] .q-menu .q-item__label,
 html[data-theme='light'] .q-menu .q-item__label--caption,
 html[data-theme='light'] .q-menu .text-grey-7 {
-  color: #475569 !important;
+  color: var(--app-overlay-item) !important;
 }
-@media (max-width: 700px) {
-  .member-invite-card .q-form > .q-field,
-  .member-invite-card .q-form > .q-btn { width: 100%; }
-}
-.file-editor-card, .source-editor-row, .cdn-rule-card { border-color: #363941; border-radius: 12px; background: #202226; }
-.source-editor-row { background: #25272c; }
-.cdn-rule-actions { display: flex; align-items: center; justify-content: center; min-height: 40px; }
-.cdn-rule-actions .q-btn { flex: 0 0 auto; }
-html[data-theme='light'] .file-editor-card, html[data-theme='light'] .source-editor-row, html[data-theme='light'] .cdn-rule-card { border-color: #e0e5ed; background: #f8fafc; }
-html[data-theme='light'] .source-editor-row { background: #fff; }
 @media (max-width: 600px) {
   .project-editor-page { padding-top: 18px !important; padding-bottom: 28px !important; }
-  .project-editor-page > .row.items-center.justify-between { display: block; }
-  .project-editor-page > .row.items-center.justify-between .q-btn { margin-top: 12px; }
   .editor-shell { border-radius: 12px; }
   .editor-tabs { padding: 0 2px; }
   .editor-tabs .q-tab { min-height: 50px; padding: 0 12px; font-size: .78rem; }
   .editor-tabs .q-tab__icon { margin-right: 4px; font-size: 20px; }
-  .editor-panels .q-tab-panel { padding: 16px 12px; }
+  .editor-panels .q-tab-panel { padding: 16px; }
   .project-editor-page .q-field, .project-editor-page .q-btn, .project-editor-page .q-select { max-width: 100%; }
-  .gallery-editor .row.items-center { align-items: stretch; }
-  .gallery-editor .row.items-center > .q-btn, .gallery-editor .row.items-center > .q-file { width: 100%; }
   .license-heading { align-items: flex-start; flex-direction: column; }
   .license-tabs .q-tab { padding: 0 10px; }
   .gallery-lightbox-prev { left: 8px; }
@@ -642,25 +718,25 @@ html[data-theme='light'] .dashboard-table td { color: #536178; border-color: #e5
 html[data-theme='light'] .dashboard-table tbody tr:hover { background: #f7f9fb; }
 html[data-theme='light'] .table-project strong { color: #253149; }
 html[data-theme='light'] .table-project small { color: #7a869a; }
-html[data-theme='dark'] .q-menu { color: #dfe2e7; background: #25272c; border: 1px solid #383b43; }
-html[data-theme='dark'] .q-menu .q-item { color: #c6cad3; }
-html[data-theme='dark'] .q-menu .q-item:hover { background: #30333a; }
-html[data-theme='dark'] .q-card:not(.dashboard-card):not(.sidebar-card):not(.project-content-card), html[data-theme='dark'] .auth-card, html[data-theme='dark'] .stat-card, html[data-theme='dark'] .empty-state, html[data-theme='dark'] .project-meta-summary, html[data-theme='dark'] .project-readme { color: #dfe2e7; background: #25272c; border-color: #363941; }
-html[data-theme='dark'] .q-card .text-grey-7, html[data-theme='dark'] .q-card .text-grey-6 { color: #9da2ae !important; }
-html[data-theme='dark'] .q-item { color: #c6cad3; }
-html[data-theme='dark'] .q-field--outlined .q-field__control:before { border-color: #454951; }
-html[data-theme='dark'] .q-field--outlined:hover .q-field__control:before { border-color: #737987; }
-html[data-theme='dark'] .q-field--focused .q-field__control:after { border-color: #35d07f; }
-html[data-theme='dark'] .q-field__control, html[data-theme='dark'] .q-field__native, html[data-theme='dark'] .q-field__input { color: #e7e9ed; }
-html[data-theme='dark'] .q-field__label { color: #aeb4bf; }
-html[data-theme='dark'] .q-field--focused .q-field__label { color: #55df91; }
-html[data-theme='dark'] .q-field__bottom, html[data-theme='dark'] .q-field__messages, html[data-theme='dark'] .q-field__counter { color: #858c99; }
-html[data-theme='dark'] .q-field__marginal, html[data-theme='dark'] .q-select__dropdown-icon { color: #aeb4bf; }
-html[data-theme='dark'] .q-field--disabled .q-field__label, html[data-theme='dark'] .q-field--disabled .q-field__native { color: #707783; }
-html[data-theme='dark'] .q-toggle__label, html[data-theme='dark'] .q-checkbox__label { color: #c7cbd3; }
-html[data-theme='dark'] .q-expansion-item, html[data-theme='dark'] .q-expansion-item .q-item { color: #dfe2e7; }
-html[data-theme='dark'] .q-expansion-item .q-item__label--caption { color: #858c99; }
-html[data-theme='dark'] .q-table { color: #dfe2e7; background: #202226; }
+html[data-theme='dark'] .q-menu { color: var(--app-text); background: var(--app-overlay); border: 1px solid var(--app-overlay-border); }
+html[data-theme='dark'] .q-menu .q-item { color: var(--app-overlay-item); }
+html[data-theme='dark'] .q-menu .q-item:hover { background: var(--app-overlay-hover); }
+html[data-theme='dark'] .q-card:not(.dashboard-card):not(.sidebar-card):not(.project-content-card), html[data-theme='dark'] .auth-card, html[data-theme='dark'] .stat-card, html[data-theme='dark'] .project-meta-summary, html[data-theme='dark'] .project-readme { color: var(--app-text); background: var(--app-surface); border-color: var(--app-border); }
+html[data-theme='dark'] .q-card .text-grey-7, html[data-theme='dark'] .q-card .text-grey-6 { color: var(--app-muted) !important; }
+html[data-theme='dark'] .q-item { color: var(--app-overlay-item); }
+html[data-theme='dark'] .q-field--outlined .q-field__control:before { border-color: var(--app-control-border); }
+html[data-theme='dark'] .q-field--outlined:hover .q-field__control:before { border-color: var(--app-control-hover-border); }
+html[data-theme='dark'] .q-field--focused .q-field__control:after { border-color: var(--app-primary); }
+html[data-theme='dark'] .q-field__control, html[data-theme='dark'] .q-field__native, html[data-theme='dark'] .q-field__input { color: var(--app-control-text); }
+html[data-theme='dark'] .q-field__label { color: var(--app-control-label); }
+html[data-theme='dark'] .q-field--focused .q-field__label { color: var(--app-primary-strong); }
+html[data-theme='dark'] .q-field__bottom, html[data-theme='dark'] .q-field__messages, html[data-theme='dark'] .q-field__counter { color: var(--app-control-muted); }
+html[data-theme='dark'] .q-field__marginal, html[data-theme='dark'] .q-select__dropdown-icon { color: var(--app-control-label); }
+html[data-theme='dark'] .q-field--disabled .q-field__label, html[data-theme='dark'] .q-field--disabled .q-field__native { color: var(--app-control-disabled); }
+html[data-theme='dark'] .q-toggle__label, html[data-theme='dark'] .q-checkbox__label { color: var(--app-overlay-item); }
+html[data-theme='dark'] .q-expansion-item, html[data-theme='dark'] .q-expansion-item .q-item { color: var(--app-text); }
+html[data-theme='dark'] .q-expansion-item .q-item__label--caption { color: var(--app-control-muted); }
+html[data-theme='dark'] .q-table { color: var(--app-text); background: var(--app-surface-muted); }
 
 /* Quasar's dark defaults are opt-in. Keep every editor control readable when
    the app theme is dark, including the higher-specificity floating-label and
@@ -675,53 +751,53 @@ html[data-theme='dark'] .q-field__marginal,
 html[data-theme='dark'] .q-select__dropdown-icon,
 html[data-theme='dark'] .q-file__text,
 html[data-theme='dark'] .q-file__filler {
-  color: #d7dbe3 !important;
+  color: var(--app-control-text) !important;
 }
 html[data-theme='dark'] .q-field--focused .q-field__label,
 html[data-theme='dark'] .q-field--focused.q-field--float .q-field__label {
-  color: #55df91 !important;
+  color: var(--app-primary-strong) !important;
 }
 html[data-theme='dark'] .q-field__bottom,
 html[data-theme='dark'] .q-field__messages,
 html[data-theme='dark'] .q-field__counter,
 html[data-theme='dark'] .q-field__bottom .q-icon,
 html[data-theme='dark'] .q-field__hint {
-  color: #9aa2b0 !important;
+  color: var(--app-control-muted) !important;
 }
 html[data-theme='dark'] .q-field--disabled .q-field__label,
 html[data-theme='dark'] .q-field--disabled .q-field__native,
 html[data-theme='dark'] .q-field--disabled .q-field__input,
 html[data-theme='dark'] .q-field--disabled .q-field__marginal {
-  color: #7f8795 !important;
+  color: var(--app-control-disabled) !important;
 }
 html[data-theme='dark'] .q-field--outlined .q-field__control:before {
-  border-color: #454b56 !important;
+  border-color: var(--app-control-border) !important;
 }
 html[data-theme='dark'] .q-field--outlined:hover .q-field__control:before {
-  border-color: #737d8d !important;
+  border-color: var(--app-control-hover-border) !important;
 }
 html[data-theme='dark'] .q-field--focused .q-field__control:after {
-  border-color: #35d07f !important;
+  border-color: var(--app-primary) !important;
 }
 html[data-theme='dark'] .q-item,
 html[data-theme='dark'] .q-item__label,
 html[data-theme='dark'] .q-expansion-item .q-item__label,
 html[data-theme='dark'] .q-expansion-item .q-item__label--caption {
-  color: #dfe3ea !important;
+  color: var(--app-text) !important;
 }
 html[data-theme='dark'] .q-expansion-item .q-item__label--caption,
 html[data-theme='dark'] .q-item__label--caption {
-  color: #9aa2b0 !important;
+  color: var(--app-muted) !important;
 }
 html[data-theme='dark'] .q-expansion-item__toggle-icon,
 html[data-theme='dark'] .q-expansion-item .q-item__section--side {
-  color: #aab2c0 !important;
+  color: var(--app-control-label) !important;
 }
 html[data-theme='dark'] .q-file .q-field__native {
   color: #d7dbe3 !important;
 }
 html[data-theme='dark'] .q-form .q-field--outlined .q-field__control {
-  background: #292c32;
+  background: var(--app-control-bg);
 }
 /* Let Quasar hide placeholders until a field's label has floated.
    Important colors here override its transparent placeholder state. A plain q-select renders no .q-placeholder node at all:
@@ -729,29 +805,29 @@ html[data-theme='dark'] .q-form .q-field--outlined .q-field__control {
 html[data-theme='dark'] .q-field__native::placeholder,
 html[data-theme='dark'] .q-field__input::placeholder,
 html[data-theme='dark'] textarea::placeholder {
-  color: #858d9b;
+  color: var(--app-control-placeholder);
 }
 html[data-theme='dark'] .q-separator {
-  background: #3b414c !important;
+  background: var(--app-separator) !important;
 }
 html[data-theme='dark'] .q-btn--flat.disabled,
 html[data-theme='dark'] .q-btn--flat[disabled] {
-  color: #777f8d !important;
+  color: var(--app-control-disabled) !important;
 }
 html[data-theme='dark'] .q-chip {
-  color: #d2d7df;
-  background: #343a44;
+  color: var(--app-control-text);
+  background: var(--app-chip-bg);
 }
 
 /* Match the same explicit control colors in light mode so theme switching
    cannot leave a stale dark value on a reused Quasar component. */
 html[data-theme='light'] .q-field__label,
 html[data-theme='light'] .q-field--float .q-field__label {
-  color: #526078 !important;
+  color: var(--app-control-label) !important;
 }
 html[data-theme='light'] .q-field--focused .q-field__label,
 html[data-theme='light'] .q-field--focused.q-field--float .q-field__label {
-  color: #147b48 !important;
+  color: var(--app-primary-strong) !important;
 }
 html[data-theme='light'] .q-field__native,
 html[data-theme='light'] .q-field__input,
@@ -760,24 +836,24 @@ html[data-theme='light'] .q-field__suffix,
 html[data-theme='light'] .q-field__marginal,
 html[data-theme='light'] .q-select__dropdown-icon,
 html[data-theme='light'] .q-file__text {
-  color: #253149 !important;
+  color: var(--app-control-text) !important;
 }
 html[data-theme='light'] .q-form .q-field--outlined .q-field__control {
-  background: #f8fafc;
+  background: var(--app-control-bg);
 }
 html[data-theme='light'] .q-field__native::placeholder,
 html[data-theme='light'] .q-field__input::placeholder,
 html[data-theme='light'] textarea::placeholder {
-  color: #7a869a;
+  color: var(--app-control-placeholder);
 }
 html[data-theme='light'] .q-field__bottom,
 html[data-theme='light'] .q-field__messages,
 html[data-theme='light'] .q-field__counter,
 html[data-theme='light'] .q-field__hint {
-  color: #6f7b8f !important;
+  color: var(--app-control-muted) !important;
 }
 html[data-theme='light'] .q-item__label--caption {
-  color: #6f7b8f !important;
+  color: var(--app-control-muted) !important;
 }
 
 .profile-page { min-height: calc(100vh - 68px); color: #e9eaee; background: #151619; }

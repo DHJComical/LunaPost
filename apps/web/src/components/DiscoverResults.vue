@@ -9,9 +9,11 @@
     </div>
     <!-- Two mutually exclusive groups: one cross-fades the banner/spinner/empty state, the other animates the cards themselves. -->
     <TransitionGroup name="results-swap" tag="div" class="results-body" mode="out-in">
-      <q-banner v-if="error" key="error" rounded class="bg-red-1 text-red-9 q-mb-md">{{ t('discover.apiError') }}</q-banner>
+      <AppNotice v-if="error" key="error" tone="error" class="q-mb-md">{{ t('discover.apiError') }}</AppNotice>
       <div v-else-if="loading" key="loading" class="results-loading"><q-spinner color="primary" size="2.5rem" /></div>
-      <div v-else-if="!projects.length" key="empty" class="empty-state text-center"><q-icon name="search_off" size="52px" color="grey-5" /><div class="text-h6 q-mt-md">{{ t('discover.noResults') }}</div><p>{{ t('discover.tryAgain') }}</p><q-btn flat color="primary" :label="t('discover.clearFilters')" @click="clearFilters" /></div>
+      <AppEmptyState v-else-if="!projects.length" key="empty" icon="search_off" :title="t('discover.noResults')" :description="t('discover.tryAgain')">
+        <template #actions><q-btn flat color="primary" :label="t('discover.clearFilters')" @click="clearFilters" /></template>
+      </AppEmptyState>
     </TransitionGroup>
     <TransitionGroup v-if="!error && !loading && projects.length" key="results" tag="div" name="card-item" :class="viewMode === 'grid' ? 'project-grid' : 'project-list'" @pointermove="moveCardGlow" @pointerleave="clearCardGlow">
       <article v-for="project in projects" :key="project.id" class="discover-card" @click="openProject(project.slug)">
@@ -28,6 +30,8 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../i18n'
+import AppEmptyState from './AppEmptyState.vue'
+import AppNotice from './AppNotice.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import { clearFilters, error, fetchProjects, filters, loading, page, pageSize, projects, setPage, total, viewMode } from '../lib/discover'
 

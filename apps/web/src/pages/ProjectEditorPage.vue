@@ -1,10 +1,9 @@
 <template>
   <q-page class="page-shell project-editor-page q-py-xl">
-    <div class="row items-center justify-between q-mb-lg">
-      <div><div class="text-overline text-primary">PROJECT EDITOR</div><h1 class="text-h4 text-weight-bold q-my-sm">{{ isNew ? '新建项目' : '编辑项目' }}</h1><div class="text-caption text-grey-7">分区编辑项目资料、版本文件和下载分发策略。</div></div>
-      <q-btn flat icon="arrow_back" label="返回后台" to="/admin" />
-    </div>
-    <q-banner v-if="error" rounded class="bg-red-1 text-red-9 q-mb-md">{{ error }}</q-banner>
+    <AppPageHeader eyebrow="PROJECT EDITOR" :title="isNew ? '新建项目' : '编辑项目'" description="分区编辑项目资料、版本文件和下载分发策略。">
+      <template #actions><q-btn flat icon="arrow_back" label="返回后台" to="/admin" /></template>
+    </AppPageHeader>
+    <AppNotice v-if="error" tone="error" class="q-mb-md">{{ error }}</AppNotice>
     <q-form @submit.prevent="save">
       <q-card flat bordered class="editor-shell">
         <q-tabs v-model="activeTab" inline-label mobile-arrows outside-arrows class="editor-tabs" active-color="primary" indicator-color="primary">
@@ -13,75 +12,232 @@
         <q-separator />
         <q-tab-panels v-model="activeTab" animated keep-alive class="editor-panels">
           <q-tab-panel name="basic">
-            <div class="text-h6 q-mb-md">基本信息</div>
-            <div class="row q-col-gutter-md">
-              <q-input v-model="form.title" class="col-12 col-md-6" outlined label="项目名称" required /><q-input v-model="form.slug" class="col-12 col-md-6" outlined label="Slug" hint="只能使用小写字母、数字和短横线" required :disable="!isNew" />
-              <q-select v-if="isNew && organizations.length" v-model="form.ownerId" class="col-12 col-md-4" outlined label="项目所有者" emit-value map-options :options="ownerOptions" /><q-select v-model="form.type" class="col-12 col-md-4" outlined label="项目类型" :options="types" emit-value map-options /><q-input v-model="form.license" class="col-12 col-md-4" outlined label="兼容许可证标识" placeholder="MIT（兼容旧数据）" />
-              <q-input v-model="form.repositoryUrl" class="col-12 col-md-4" outlined label="源码仓库 URL" type="url" /><q-input v-model="form.iconUrl" class="col-12 col-md-6" outlined label="主图标 URL" type="url" /><q-file :model-value="null" class="col-12 col-md-2" outlined dense label="上传本站图标" accept="image/*" @update:model-value="(value) => uploadAsset(value, 'icon')" />
-              <q-input v-model="form.iconUrls" class="col-12" outlined label="更多图标 URL" hint="多个 URL 用逗号分隔" /><q-input v-model="form.description" class="col-12" outlined type="textarea" autogrow label="项目描述" required />
-              <q-input v-model="form.loaders" class="col-12 col-md-6" outlined label="加载器" hint="多个值用逗号分隔，例如 fabric, forge" /><q-input v-model="form.gameVersions" class="col-12 col-md-6" outlined label="游戏版本" hint="多个值用逗号分隔，例如 1.21.1, 1.20.1" />
-            </div>
+            <FormSection title="基本信息" description="填写项目身份、展示资料和兼容范围。">
+              <FormGrid>
+                <q-input v-model="form.title" outlined label="项目名称" required />
+                <q-input v-model="form.slug" outlined label="Slug" hint="只能使用小写字母、数字和短横线" required :disable="!isNew" />
+                <q-select v-if="isNew && organizations.length" v-model="form.ownerId" outlined label="项目所有者" emit-value map-options :options="ownerOptions" />
+                <q-select v-model="form.type" outlined label="项目类型" :options="types" emit-value map-options />
+                <q-input v-model="form.license" outlined label="兼容许可证标识" placeholder="MIT（兼容旧数据）" />
+                <q-input v-model="form.repositoryUrl" outlined label="源码仓库 URL" type="url" />
+                <q-input v-model="form.iconUrl" outlined label="主图标 URL" type="url" />
+                <q-file :model-value="null" outlined label="上传本站图标" accept="image/*" @update:model-value="(value) => uploadAsset(value, 'icon')" />
+                <q-input v-model="form.iconUrls" class="form-grid__full" outlined label="更多图标 URL" hint="多个 URL 用逗号分隔" />
+                <q-input v-model="form.description" class="form-grid__full" outlined type="textarea" autogrow label="项目描述" required />
+                <q-input v-model="form.loaders" outlined label="加载器" hint="多个值用逗号分隔，例如 fabric, forge" />
+                <q-input v-model="form.gameVersions" outlined label="游戏版本" hint="多个值用逗号分隔，例如 1.21.1, 1.20.1" />
+              </FormGrid>
+            </FormSection>
           </q-tab-panel>
 
           <q-tab-panel name="gallery">
-            <div class="text-h6 q-mb-md">项目画廊</div>
-            <div class="col-12 gallery-editor"><div class="row items-center q-gutter-sm q-mb-sm"><div><div class="text-subtitle1 text-weight-bold">项目画廊</div><div class="text-caption text-grey-7">展示截图、宣传图和功能预览。支持外链，也支持上传到本站。</div></div><q-space /><q-btn outline dense icon="add_link" label="添加 URL" @click="galleryUrls.push('')" /><q-file :model-value="null" outlined dense multiple accept="image/*" label="上传图片" @update:model-value="uploadGalleryFiles" /></div><div v-if="galleryUrls.length" class="gallery-editor-grid"><div v-for="(url, index) in galleryUrls" :key="`${url}-${index}`" class="gallery-editor-item"><q-img v-if="url" :src="url" ratio="16/9" fit="cover" /><div v-else class="gallery-editor-placeholder"><q-icon name="image" size="32px" /></div><q-btn round dense color="negative" icon="delete" class="gallery-editor-remove" aria-label="删除图片" @click="galleryUrls.splice(index, 1)" /><q-input v-model="galleryUrls[index]" dense outlined placeholder="图片 URL" /></div></div><q-input v-if="!galleryUrls.length" v-model="form.gallery" outlined dense label="图片 URL（可选）" hint="也可以直接粘贴逗号分隔的图片 URL" /></div>
+            <FormSection title="项目画廊" description="展示截图、宣传图和功能预览。支持外链，也支持上传到本站。">
+              <template #actions>
+                <q-btn outline dense icon="add_link" label="添加 URL" @click="galleryUrls.push('')" />
+                <q-file :model-value="null" outlined multiple accept="image/*" label="上传图片" @update:model-value="uploadGalleryFiles" />
+              </template>
+              <div class="gallery-editor">
+                <div v-if="galleryUrls.length" class="gallery-editor-grid">
+                  <div v-for="(url, index) in galleryUrls" :key="`${url}-${index}`" class="gallery-editor-item">
+                    <q-img v-if="url" :src="url" ratio="16/9" fit="cover" />
+                    <div v-else class="gallery-editor-placeholder"><q-icon name="image" size="32px" /></div>
+                    <q-btn round dense color="negative" icon="delete" class="gallery-editor-remove" aria-label="删除图片" @click="galleryUrls.splice(index, 1)" />
+                    <q-input v-model="galleryUrls[index]" outlined placeholder="图片 URL" />
+                  </div>
+                </div>
+                <q-input v-else v-model="form.gallery" outlined label="图片 URL（可选）" hint="也可以直接粘贴逗号分隔的图片 URL" />
+              </div>
+            </FormSection>
           </q-tab-panel>
 
           <q-tab-panel name="licenses">
-            <div class="text-h6 q-mb-md">许可证文件</div>
-            <div class="col-12 license-editor"><div class="row items-center q-mb-sm"><div><div class="text-subtitle1 text-weight-bold">许可证文件</div><div class="text-caption text-grey-7">一个项目可以包含多个许可证，也可以填写自定义许可证原文。</div></div><q-space /><q-btn outline dense icon="add" label="添加许可证" @click="licenses.push({ id: `license-${Date.now()}`, name: '新许可证', fileName: 'LICENSE', text: '' })" /></div><div v-for="(license, index) in licenses" :key="license.id" class="license-editor-card"><div class="row q-col-gutter-sm"><q-input v-model="license.name" class="col-12 col-md-4" outlined dense label="名称" /><q-input v-model="license.spdx" class="col-12 col-md-3" outlined dense label="SPDX 标识" placeholder="MIT / LGPL-3.0" /><q-input v-model="license.fileName" class="col-12 col-md-3" outlined dense label="文件名" placeholder="LICENSE" /><q-btn flat dense round color="negative" icon="delete" class="col-12 col-md-2" aria-label="删除许可证" @click="licenses.splice(index, 1)" /><q-input v-model="license.url" class="col-12 col-md-6" outlined dense label="许可证 URL" type="url" /><CodeEditor :model-value="license.text ?? ''" class="col-12" language="plaintext" :label="`${license.name || '许可证'} 原文`" height="220px" @update:model-value="value => license.text = value" /></div></div></div>
-              
+            <FormSection title="许可证文件" description="一个项目可以包含多个许可证，也可以填写自定义许可证原文。">
+              <template #actions>
+                <q-btn outline dense icon="add" label="添加许可证" @click="licenses.push({ id: `license-${Date.now()}`, name: '新许可证', fileName: 'LICENSE', text: '' })" />
+              </template>
+              <div class="form-item-list">
+                <FormItemCard v-for="(license, index) in licenses" :key="license.id" :title="license.name || `许可证 ${index + 1}`">
+                  <template #actions>
+                    <q-btn flat dense round color="negative" icon="delete" :aria-label="`删除许可证 ${license.name || index + 1}`" @click="licenses.splice(index, 1)" />
+                  </template>
+                  <FormGrid>
+                    <q-input v-model="license.name" outlined label="名称" />
+                    <q-input v-model="license.spdx" outlined label="SPDX 标识" placeholder="MIT / LGPL-3.0" />
+                    <q-input v-model="license.fileName" outlined label="文件名" placeholder="LICENSE" />
+                    <q-input v-model="license.url" outlined label="许可证 URL" type="url" />
+                    <CodeEditor :model-value="license.text ?? ''" class="form-grid__full" language="plaintext" :label="`${license.name || '许可证'} 原文`" height="220px" @update:model-value="value => license.text = value" />
+                  </FormGrid>
+                </FormItemCard>
+              </div>
+            </FormSection>
           </q-tab-panel>
 
           <q-tab-panel name="content">
-            <div class="text-h6 q-mb-md">内容、分类与链接</div>
-            <div class="row q-col-gutter-md">
-              <q-input v-model="form.categories" class="col-12 col-md-6" outlined label="分类" hint="例如 adventure, optimization, technology" /><q-input v-model="form.keywords" class="col-12 col-md-6" outlined label="关键词" hint="用于搜索，多个值用逗号分隔" />
-              <q-select v-model="form.clientSide" class="col-12 col-md-3" outlined emit-value map-options label="客户端" :options="environmentTypes" /><q-select v-model="form.serverSide" class="col-12 col-md-3" outlined emit-value map-options label="服务端" :options="environmentTypes" /><q-select v-model="form.status" class="col-12 col-md-3" outlined emit-value map-options label="审核状态" :options="statusOptions" /><q-toggle v-model="form.featured" class="col-12 col-md-3" label="精选项目" color="primary" />
-              <CodeEditor v-model="form.body" class="col-12" language="markdown" label="项目正文 / README" height="420px" />
-            </div>
-            <q-separator class="q-my-lg" /><div class="text-subtitle1 text-weight-bold q-mb-md">链接与社区</div>
-            <div class="row q-col-gutter-md"><q-input v-model="form.sourceUrl" class="col-12 col-md-4" outlined label="源码 URL" type="url" /><q-input v-model="form.issuesUrl" class="col-12 col-md-4" outlined label="问题反馈 URL" type="url" /><q-input v-model="form.discordUrl" class="col-12 col-md-4" outlined label="Discord URL" type="url" /><q-input v-model="form.donationUrls" class="col-12" outlined label="捐赠链接" hint="格式：平台=https://...，多个值用逗号分隔" /><q-input v-model="form.wikiUrl" class="col-12 col-md-6" outlined label="外部 Wiki URL" type="url" /></div>
-            <div class="row items-center justify-between q-mt-md"><div><div class="text-subtitle2">自定义链接</div><div class="text-caption text-grey-7">可以动态添加文档、发行说明、Modrinth、CurseForge 或社群链接。</div></div><q-btn flat dense color="primary" icon="add_link" label="添加链接" @click="addCustomLink" /></div>
-            <div v-for="(link, linkIndex) in customLinks" :key="link.id || linkIndex" class="row q-col-gutter-sm items-center q-mt-sm"><q-input v-model="link.label" class="col-12 col-md-2" outlined dense label="显示名称" /><q-input v-model="link.url" class="col-12 col-md-4" outlined dense label="URL" type="url" /><q-input v-model="link.icon" class="col-6 col-md-2" outlined dense label="图标名" hint="Material icon" /><q-input v-model="link.group" class="col-6 col-md-1" outlined dense label="分组" /><q-toggle v-model="link.embed" class="col-8 col-md-2" dense label="项目内嵌入" color="primary" /><q-btn flat round dense icon="delete" color="negative" class="col-4 col-md-1" @click="customLinks.splice(linkIndex, 1)" /></div>
-            <q-separator class="q-my-lg" /><div class="text-subtitle1 text-weight-bold q-mb-md">项目主页与 Wiki</div>
-            <CodeEditor v-model="form.homepageHtml" language="html" label="项目主页 HTML" height="320px" /><CodeEditor v-model="form.wikiHtml" class="q-mt-md" language="html" label="Wiki HTML（可选）" height="320px" />
+            <FormSection title="内容与分类" description="整理项目介绍、搜索标签和运行环境。">
+              <FormGrid>
+                <q-input v-model="form.categories" outlined label="分类" hint="例如 adventure, optimization, technology" />
+                <q-input v-model="form.keywords" outlined label="关键词" hint="用于搜索，多个值用逗号分隔" />
+                <q-select v-model="form.clientSide" outlined emit-value map-options label="客户端" :options="environmentTypes" />
+                <q-select v-model="form.serverSide" outlined emit-value map-options label="服务端" :options="environmentTypes" />
+                <q-select v-model="form.status" outlined emit-value map-options label="审核状态" :options="statusOptions" />
+                <q-toggle v-model="form.featured" dense label="精选项目" color="primary" />
+                <CodeEditor v-model="form.body" class="form-grid__full" language="markdown" label="项目正文 / README" height="420px" />
+              </FormGrid>
+            </FormSection>
+            <FormSection title="链接与社区" description="添加项目源码、反馈渠道和其他社区链接。">
+              <FormGrid>
+                <q-input v-model="form.sourceUrl" outlined label="源码 URL" type="url" />
+                <q-input v-model="form.issuesUrl" outlined label="问题反馈 URL" type="url" />
+                <q-input v-model="form.discordUrl" outlined label="Discord URL" type="url" />
+                <q-input v-model="form.wikiUrl" outlined label="外部 Wiki URL" type="url" />
+                <q-input v-model="form.donationUrls" class="form-grid__full" outlined label="捐赠链接" hint="格式：平台=https://...，多个值用逗号分隔" />
+                <div class="form-grid__full">
+                  <FormSection title="自定义链接" description="可以添加文档、发行说明、Modrinth、CurseForge 或社群链接。">
+                    <template #actions>
+                      <q-btn flat dense color="primary" icon="add_link" label="添加链接" @click="addCustomLink" />
+                    </template>
+                    <div v-if="!customLinks.length" class="text-caption text-grey-7">暂无自定义链接。</div>
+                    <div v-else class="form-item-list">
+                      <FormItemCard v-for="(link, linkIndex) in customLinks" :key="link.id || linkIndex" :title="link.label || `链接 ${linkIndex + 1}`" :description="link.url || undefined">
+                        <template #actions><q-btn flat dense round icon="delete" color="negative" :aria-label="`删除链接 ${link.label || linkIndex + 1}`" @click="customLinks.splice(linkIndex, 1)" /></template>
+                        <FormGrid :columns="2">
+                          <q-input v-model="link.label" outlined label="显示名称" />
+                          <q-input v-model="link.url" outlined label="URL" type="url" />
+                          <q-input v-model="link.icon" outlined label="图标名" hint="Material icon" />
+                          <q-input v-model="link.group" outlined label="分组" />
+                          <q-toggle v-model="link.embed" class="form-grid__full" dense label="项目内嵌入" color="primary" />
+                        </FormGrid>
+                      </FormItemCard>
+                    </div>
+                  </FormSection>
+                </div>
+              </FormGrid>
+            </FormSection>
+            <FormSection title="项目主页与 Wiki" description="高级内容区支持自定义 HTML。">
+              <CodeEditor v-model="form.homepageHtml" language="html" label="项目主页 HTML" height="320px" />
+              <CodeEditor v-model="form.wikiHtml" language="html" label="Wiki HTML（可选）" height="320px" />
+            </FormSection>
           </q-tab-panel>
 
           <q-tab-panel name="versions">
-            <div class="row items-center justify-between"><div><div class="text-h6">版本与文件</div><div class="text-caption text-grey-7">版本和文件支持可视化编辑，也可以切换到 JSON 源码模式。</div></div><q-btn-toggle v-model="versionMode" dense unelevated toggle-color="primary" :options="[{ label: '可视化', value: 'visual' }, { label: '源码', value: 'source' }]" /></div>
-            <div v-if="versionMode === 'visual'" class="q-mt-md">
-              <q-expansion-item v-for="(version, versionIndex) in visualVersions" :key="version.id" expand-separator default-opened>
+            <FormSection title="版本与文件" description="版本和文件支持可视化编辑，也可以切换到 JSON 源码模式。">
+              <template #actions>
+                <q-btn-toggle v-model="versionMode" dense unelevated toggle-color="primary" :options="[{ label: '可视化', value: 'visual' }, { label: '源码', value: 'source' }]" />
+              </template>
+            <div v-if="versionMode === 'visual'">
+              <div class="form-item-list">
+                <q-expansion-item v-for="(version, versionIndex) in visualVersions" :key="version.id" class="editor-expansion-item version-editor-item" expand-separator default-opened>
                 <template #header><q-item-section><q-item-label>{{ version.version || '未命名版本' }}</q-item-label><q-item-label caption>{{ version.type }} · {{ version.files.length }} 个文件</q-item-label></q-item-section><q-item-section side><q-btn flat round dense icon="delete" color="negative" @click.stop="visualVersions.splice(versionIndex, 1)" /></q-item-section></template>
                 <q-card-section>
-                  <div class="row q-col-gutter-sm"><q-input v-model="version.version" class="col-12 col-md-4" outlined dense label="版本号" /><q-select v-model="version.type" class="col-12 col-md-4" outlined dense label="发布类型" emit-value map-options :options="versionTypes" /><q-input :model-value="version.gameVersions.join(', ')" class="col-12 col-md-6" outlined dense label="游戏版本" @update:model-value="(value) => version.gameVersions = csv(value)" /><q-input :model-value="version.loaders.join(', ')" class="col-12 col-md-6" outlined dense label="加载器" @update:model-value="(value) => version.loaders = csv(value)" /><q-input v-model="version.publishedAt" class="col-12 col-md-6" outlined dense label="发布时间" hint="ISO 日期，可留空" /><CodeEditor :model-value="version.description ?? ''" class="col-12" language="markdown" label="版本描述" height="240px" @update:model-value="value => version.description = value" /><CodeEditor :model-value="version.changelog ?? ''" class="col-12" language="markdown" label="更新日志" height="300px" @update:model-value="value => version.changelog = value" /></div>
+                  <FormGrid>
+                    <q-input v-model="version.version" outlined label="版本号" />
+                    <q-select v-model="version.type" outlined label="发布类型" emit-value map-options :options="versionTypes" />
+                    <q-input :model-value="version.gameVersions.join(', ')" outlined label="游戏版本" @update:model-value="(value) => version.gameVersions = csv(value)" />
+                    <q-input :model-value="version.loaders.join(', ')" outlined label="加载器" @update:model-value="(value) => version.loaders = csv(value)" />
+                    <q-input v-model="version.publishedAt" outlined label="发布时间" hint="ISO 日期，可留空" />
+                    <CodeEditor :model-value="version.description ?? ''" class="form-grid__full" language="markdown" label="版本描述" height="240px" @update:model-value="value => version.description = value" />
+                    <CodeEditor :model-value="version.changelog ?? ''" class="form-grid__full" language="markdown" label="更新日志" height="300px" @update:model-value="value => version.changelog = value" />
+                  </FormGrid>
                   <DependencyEditor v-model="version.dependencies" :version="version" />
-                  <div class="row items-center justify-between q-mt-md"><div class="text-subtitle2">文件与下载镜像</div><q-btn flat dense color="primary" icon="add" label="添加文件" @click="addFile(version)" /></div>
-                  <q-card v-for="(file, fileIndex) in version.files" :key="file.id" flat bordered class="file-editor-card q-mt-md"><q-card-section>
-                    <div class="row items-center justify-between q-mb-sm"><div class="text-subtitle2">{{ file.name || '未命名文件' }}</div><q-btn flat round dense icon="delete" color="negative" @click="version.files.splice(fileIndex, 1)" /></div>
-                    <div class="row q-col-gutter-sm"><q-input v-model="file.id" class="col-12 col-md-2" outlined dense label="文件 ID" /><q-input v-model="file.name" class="col-12 col-md-3" outlined dense label="文件名" /><q-select v-model="file.fileType" class="col-12 col-md-3" outlined dense emit-value map-options label="文件类型" :options="fileTypes" /><q-toggle v-model="file.primary" class="col-12 col-md-2" label="主文件" color="primary" /><q-input v-model.number="file.size" class="col-12 col-md-2" outlined dense type="number" label="大小（字节）" /><q-input v-model="file.sha1" class="col-12 col-md-5" outlined dense label="SHA-1" /><q-input v-model="file.sha512" class="col-12 col-md-7" outlined dense label="SHA-512" /><q-input v-model="file.description" class="col-12" outlined dense type="textarea" autogrow label="文件描述" /><CodeEditor :model-value="metadataText(file)" class="col-12" language="json" label="文件 metadata JSON" height="280px" @update:model-value="(value) => updateMetadata(file, value)" /></div>
-                    <div class="row items-center justify-between q-mt-md"><div class="text-caption text-weight-bold">镜像地址（下载时可手动选择）</div><div class="row q-gutter-xs"><q-file :model-value="null" outlined dense label="上传本站" @update:model-value="(value) => uploadSelected(value, file)" /><q-btn flat dense color="primary" icon="add" label="添加镜像" @click="addSource(file)" /></div></div>
-                    <q-card v-for="(source, sourceIndex) in file.sources" :key="source.id" flat bordered class="source-editor-row q-mt-sm"><q-card-section class="row q-col-gutter-sm items-center"><q-input v-model="source.id" class="col-12 col-md-2" outlined dense label="镜像 ID" /><q-select v-model="source.kind" class="col-12 col-md-2" outlined dense emit-value map-options label="类型" :options="sourceTypes" /><q-input v-model="source.region" class="col-6 col-md-2" outlined dense label="区域" hint="GLOBAL/CN/EU" /><q-input v-model.number="source.priority" class="col-6 col-md-1" outlined dense type="number" label="优先级" /><q-input v-model="source.url" class="col-12 col-md-4" outlined dense label="下载 URL" type="url" /><q-btn flat round dense icon="delete" color="negative" :disable="file.sources.length <= 1" @click="file.sources.splice(sourceIndex, 1)" /></q-card-section></q-card>
-                  </q-card-section></q-card>
+                  <SectionHeading title="文件与下载镜像">
+                    <template #actions><q-btn flat dense color="primary" icon="add" label="添加文件" @click="addFile(version)" /></template>
+                  </SectionHeading>
+                  <div class="form-item-list">
+                    <FormItemCard v-for="(file, fileIndex) in version.files" :key="file.id" :title="file.name || '未命名文件'">
+                    <template #actions><q-btn flat round dense icon="delete" color="negative" :aria-label="`删除文件 ${file.name || fileIndex + 1}`" @click="version.files.splice(fileIndex, 1)" /></template>
+                    <FormGrid>
+                      <q-input v-model="file.id" outlined label="文件 ID" />
+                      <q-input v-model="file.name" outlined label="文件名" />
+                      <q-select v-model="file.fileType" outlined emit-value map-options label="文件类型" :options="fileTypes" />
+                      <q-toggle v-model="file.primary" dense label="主文件" color="primary" />
+                      <q-input v-model.number="file.size" outlined type="number" label="大小（字节）" />
+                      <q-input v-model="file.sha1" outlined label="SHA-1" />
+                      <q-input v-model="file.sha512" outlined label="SHA-512" />
+                      <q-input v-model="file.description" class="form-grid__full" outlined type="textarea" autogrow label="文件描述" />
+                      <CodeEditor :model-value="metadataText(file)" class="form-grid__full" language="json" label="文件 metadata JSON" height="280px" @update:model-value="(value) => updateMetadata(file, value)" />
+                    </FormGrid>
+                    <SectionHeading title="镜像地址" description="下载时可手动选择。">
+                      <template #actions>
+                        <q-file :model-value="null" outlined label="上传本站" @update:model-value="(value) => uploadSelected(value, file)" />
+                        <q-btn flat dense color="primary" icon="add" label="添加镜像" @click="addSource(file)" />
+                      </template>
+                    </SectionHeading>
+                    <div class="form-item-list">
+                      <FormItemCard v-for="(source, sourceIndex) in file.sources" :key="source.id" title="下载镜像" :description="source.id">
+                      <template #actions><q-btn flat round dense icon="delete" color="negative" :disable="file.sources.length <= 1" :aria-label="`删除镜像 ${source.id}`" @click="file.sources.splice(sourceIndex, 1)" /></template>
+                      <FormGrid :columns="3">
+                          <q-input v-model="source.id" outlined label="镜像 ID" />
+                          <q-select v-model="source.kind" outlined emit-value map-options label="类型" :options="sourceTypes" />
+                          <q-input v-model="source.region" outlined label="区域" hint="GLOBAL/CN/EU" />
+                          <q-input v-model.number="source.priority" outlined type="number" label="优先级" />
+                          <q-input v-model="source.url" class="form-grid__full" outlined label="下载 URL" type="url" />
+                      </FormGrid>
+                      </FormItemCard>
+                    </div>
+                    </FormItemCard>
+                  </div>
                 </q-card-section>
-              </q-expansion-item>
+                </q-expansion-item>
+              </div>
               <DependencyPanel v-if="previewProject" :project="previewProject" preview />
               <q-btn outline color="primary" icon="add" label="添加版本" class="q-mt-md" @click="addVersion" />
             </div>
-            <div v-else class="q-mt-md"><q-btn flat color="primary" label="填入版本模板" @click="useTemplate" /><CodeEditor v-model="versionsJson" class="q-mt-sm" language="json" label="versions JSON" height="480px" :error="Boolean(jsonError)" :error-message="jsonError" /></div>
+            <div v-else><q-btn flat color="primary" label="填入版本模板" @click="useTemplate" /><CodeEditor v-model="versionsJson" class="q-mt-sm" language="json" label="versions JSON" height="480px" :error="Boolean(jsonError)" :error-message="jsonError" /></div>
+            </FormSection>
           </q-tab-panel>
 
           <q-tab-panel name="delivery">
-            <div class="text-h6">CDN 与镜像规则</div><div class="text-caption text-grey-7 q-mb-md">CDN 规则会为项目的每个文件自动生成一个镜像。模板支持 {fileId}、{filename}、{projectSlug}、{versionId} 和 {version}。</div><q-banner rounded class="bg-blue-1 text-blue-10 q-mb-md">文件自身的镜像优先保留；CDN 规则会作为额外镜像加入，下载 API 支持通过 <code>?source=镜像ID</code> 手动选择。</q-banner>
-            <q-card v-for="(rule, index) in cdnRules" :key="rule.id" flat bordered class="cdn-rule-card q-mb-md"><q-card-section class="row q-col-gutter-sm items-center"><q-input v-model="rule.id" class="col-12 col-md-2" outlined dense label="规则 ID" /><q-input v-model="rule.label" class="col-12 col-md-2" outlined dense label="名称" /><q-input v-model="rule.template" class="col-12 col-md-4" outlined dense label="URL 模板" /><q-input v-model="rule.region" class="col-6 col-md-1" outlined dense label="区域" /><q-input v-model.number="rule.priority" class="col-6 col-md-1" outlined dense type="number" label="优先级" /><q-toggle v-model="rule.enabled" class="col-8 col-md-1" label="启用" color="primary" /><div class="cdn-rule-actions col-4 col-md-1"><q-btn flat round dense icon="delete" color="negative" aria-label="删除 CDN 规则" @click="cdnRules.splice(index, 1)" /></div></q-card-section></q-card>
-            <q-btn outline color="primary" icon="add" label="添加 CDN 规则" @click="addCdnRule" />
+            <FormSection title="CDN 与镜像规则" description="CDN 规则会为项目的每个文件自动生成一个镜像。模板支持 {fileId}、{filename}、{projectSlug}、{versionId} 和 {version}。">
+              <AppNotice tone="info">文件自身的镜像优先保留；CDN 规则会作为额外镜像加入，下载 API 支持通过 <code>?source=镜像ID</code> 手动选择。</AppNotice>
+              <div class="form-item-list">
+                <FormItemCard v-for="(rule, index) in cdnRules" :key="rule.id" :title="rule.label || `CDN 规则 ${index + 1}`" :description="rule.id">
+                  <template #actions><q-btn flat round dense icon="delete" color="negative" :aria-label="`删除 CDN 规则 ${rule.id}`" @click="cdnRules.splice(index, 1)" /></template>
+                  <FormGrid>
+                    <q-input v-model="rule.id" outlined label="规则 ID" />
+                    <q-input v-model="rule.label" outlined label="名称" />
+                    <q-input v-model="rule.region" outlined label="区域" />
+                    <q-input v-model.number="rule.priority" outlined type="number" label="优先级" />
+                    <q-input v-model="rule.template" class="form-grid__full" outlined label="URL 模板" />
+                    <q-toggle v-model="rule.enabled" dense label="启用" color="primary" />
+                  </FormGrid>
+                </FormItemCard>
+              </div>
+              <q-btn outline color="primary" icon="add" label="添加 CDN 规则" @click="addCdnRule" />
+            </FormSection>
           </q-tab-panel>
 
-          <q-tab-panel v-if="!isNew" name="members"><div class="text-h6">项目参与者</div><div class="text-caption text-grey-7">管理项目成员和权限。邀请会发送到对方的站内通知。</div><q-card flat bordered class="member-invite-card q-mt-md"><q-card-section><div class="text-subtitle1 text-weight-bold">邀请成员</div><div class="text-caption text-grey-7 q-mb-md">搜索账户邮箱或 ID。默认展示站点管理员和开发者的前 20 个账户。</div><q-form class="row q-col-gutter-sm items-start" @submit.prevent="invite"><q-select v-model="inviteEmail" class="col-12 col-md-6 member-search-select" outlined dense stack-label use-input fill-input hide-selected emit-value map-options input-debounce="250" label="搜索成员" placeholder="输入邮箱或 ID 搜索" :options="userOptions" option-label="email" option-value="email" :disable="inviting" :loading="usersLoading" autocomplete="off" @focus="loadUserOptions()" @filter="filterUsers"><template #option="scope"><q-item v-bind="scope.itemProps"><q-item-section><q-item-label>{{ scope.opt.email }}</q-item-label><q-item-label caption>@{{ scope.opt.id }} · {{ scope.opt.role }}</q-item-label></q-item-section></q-item></template><template #no-option><q-item><q-item-section class="text-grey-7">没有匹配的管理员或开发者账户</q-item-section></q-item></template></q-select><q-select v-model="inviteRole" class="col-12 col-md-3" outlined dense emit-value map-options label="项目权限" :options="memberRoleOptions" :disable="inviting" /><q-btn class="col-12 col-md-3" color="primary" unelevated icon="person_add" label="发送邀请" type="submit" :loading="inviting" /></q-form><q-banner v-if="inviteMessage" dense rounded class="bg-green-1 text-green-9 q-mt-md">{{ inviteMessage }}</q-banner></q-card-section></q-card><div class="text-subtitle1 text-weight-bold q-mt-lg">当前成员</div><q-list bordered separator class="q-mt-sm"><q-item v-for="member in members" :key="member.accountId"><q-item-section avatar><q-avatar color="primary" text-color="dark">{{ member.email.slice(0, 1).toUpperCase() }}</q-avatar></q-item-section><q-item-section><q-item-label>{{ member.email }}</q-item-label><q-item-label caption>{{ roleLabels[member.role] ?? member.role }}</q-item-label></q-item-section><q-item-section side><q-btn v-if="member.role !== 'owner'" flat dense color="negative" label="移除" @click="removeMember(member.accountId)" /></q-item-section></q-item><q-item v-if="!members.length"><q-item-section class="text-grey-7">还没有参与者记录</q-item-section></q-item></q-list></q-tab-panel>
+          <q-tab-panel v-if="!isNew" name="members">
+            <FormSection title="项目参与者" description="管理项目成员和权限。邀请会发送到对方的站内通知。">
+              <FormItemCard title="邀请成员" description="搜索账户邮箱或 ID。默认展示站点管理员和开发者的前 20 个账户。">
+                <q-form @submit.prevent="invite">
+                  <FormGrid :columns="3">
+                    <q-select v-model="inviteEmail" class="form-grid__wide member-search-select" outlined stack-label use-input fill-input hide-selected emit-value map-options input-debounce="250" label="搜索成员" placeholder="输入邮箱或 ID 搜索" :options="userOptions" option-label="email" option-value="email" :disable="inviting" :loading="usersLoading" autocomplete="off" @focus="loadUserOptions()" @filter="filterUsers">
+                      <template #option="scope">
+                        <q-item v-bind="scope.itemProps"><q-item-section><q-item-label>{{ scope.opt.email }}</q-item-label><q-item-label caption>@{{ scope.opt.id }} · {{ scope.opt.role }}</q-item-label></q-item-section></q-item>
+                      </template>
+                      <template #no-option><q-item><q-item-section class="text-grey-7">没有匹配的管理员或开发者账户</q-item-section></q-item></template>
+                    </q-select>
+                    <q-select v-model="inviteRole" outlined emit-value map-options label="项目权限" :options="memberRoleOptions" :disable="inviting" />
+                    <FormActions class="form-grid__full"><q-btn color="primary" unelevated icon="person_add" label="发送邀请" type="submit" :loading="inviting" /></FormActions>
+                  </FormGrid>
+                  <AppNotice v-if="inviteMessage" tone="success" class="q-mt-md">{{ inviteMessage }}</AppNotice>
+                </q-form>
+              </FormItemCard>
+              <FormItemCard title="当前成员">
+                <q-list separator>
+                  <q-item v-for="member in members" :key="member.accountId">
+                    <q-item-section avatar><q-avatar color="primary" text-color="dark">{{ member.email.slice(0, 1).toUpperCase() }}</q-avatar></q-item-section>
+                    <q-item-section><q-item-label>{{ member.email }}</q-item-label><q-item-label caption>{{ roleLabels[member.role] ?? member.role }}</q-item-label></q-item-section>
+                    <q-item-section side><q-btn v-if="member.role !== 'owner'" flat dense color="negative" label="移除" @click="removeMember(member.accountId)" /></q-item-section>
+                  </q-item>
+                  <q-item v-if="!members.length"><q-item-section class="text-grey-7">还没有参与者记录</q-item-section></q-item>
+                </q-list>
+              </FormItemCard>
+            </FormSection>
+          </q-tab-panel>
         </q-tab-panels>
       </q-card>
-      <div class="row justify-end q-gutter-sm q-mt-lg"><q-btn flat label="取消" to="/admin" /><q-btn color="primary" type="submit" :loading="saving" :label="isNew ? '创建项目' : '保存修改'" /></div>
+      <FormActions class="q-mt-lg"><q-btn flat label="取消" to="/admin" /><q-btn color="primary" type="submit" :loading="saving" :label="isNew ? '创建项目' : '保存修改'" /></FormActions>
     </q-form>
   </q-page>
 </template>
@@ -97,6 +253,13 @@ import { useAuthStore } from '../stores/auth'
 import CodeEditor from '../components/CodeEditor.vue'
 import DependencyEditor from '../components/DependencyEditor.vue'
 import DependencyPanel from '../components/DependencyPanel.vue'
+import AppNotice from '../components/AppNotice.vue'
+import AppPageHeader from '../components/AppPageHeader.vue'
+import FormActions from '../components/FormActions.vue'
+import FormGrid from '../components/FormGrid.vue'
+import FormItemCard from '../components/FormItemCard.vue'
+import FormSection from '../components/FormSection.vue'
+import SectionHeading from '../components/SectionHeading.vue'
 import { projectSchema } from '@andrea/contracts'
 
 const route = useRoute(); const router = useRouter(); const auth = useAuthStore(); const saving = ref(false); const error = ref(''); const jsonError = ref('')
@@ -120,4 +283,3 @@ const loadUserOptions = async (query = '') => { usersLoading.value = true; try {
 const invite = async () => { const email = inviteEmail.value.trim().toLowerCase(); inviteMessage.value = ''; if (!email) return; inviting.value = true; try { await inviteProjectMember(String(route.params.slug), email, inviteRole.value); inviteMessage.value = `已向 ${email} 发送邀请。`; inviteEmail.value = '' } catch (cause) { error.value = cause instanceof Error ? cause.message : '邀请失败。' } finally { inviting.value = false } }; const removeMember = async (accountId: string) => { if (!window.confirm('确定移除这个成员吗？')) return; try { await removeProjectMember(String(route.params.slug), accountId); members.value = members.value.filter((member) => member.accountId !== accountId) } catch (cause) { error.value = cause instanceof Error ? cause.message : '移除成员失败。' } }
 onMounted(load)
 </script>
-

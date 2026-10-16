@@ -58,12 +58,12 @@ onBeforeUnmount(() => { changeListener?.dispose(); editor?.dispose() })
 </template>
 
 <style scoped>
-.code-editor { --editor-border: var(--app-border, #d9dee8); --editor-surface: var(--app-surface, #fff); --editor-muted: var(--app-muted, #667085); overflow: hidden; min-width: 0; border: 1px solid var(--editor-border); border-radius: 10px; background: var(--editor-surface); color: var(--app-text, #152033); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+.code-editor { --editor-border: var(--app-border, #d9dee8); --editor-surface: var(--app-surface, #fff); --editor-muted: var(--app-muted, #667085); --editor-radius: var(--app-radius-md, 12px); overflow: hidden; min-width: 0; border: 1px solid var(--editor-border); border-radius: var(--editor-radius); background: var(--editor-surface); color: var(--app-text, #152033); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
 .code-editor__toolbar { min-height: 42px; display: flex; align-items: center; padding: 0 6px 0 14px; border-bottom: 1px solid var(--editor-border); background: color-mix(in srgb, var(--editor-surface) 92%, var(--app-text, #152033)); color: var(--app-text, #152033); }
 .code-editor__toolbar .q-btn { color: var(--editor-muted); }
 .code-editor__toolbar .q-btn:hover { color: var(--app-text, #152033); background: color-mix(in srgb, var(--app-text, #152033) 10%, transparent); }
 .code-editor__host { width: 100%; min-width: 0; background: var(--editor-surface); }
-.code-editor__host :deep(.monaco-editor), .code-editor__host :deep(.monaco-editor .overflow-guard) { border-radius: 0 0 9px 9px; }
+.code-editor__host :deep(.monaco-editor), .code-editor__host :deep(.monaco-editor .overflow-guard) { border-radius: 0 0 var(--editor-radius) var(--editor-radius); }
 .code-editor--fullscreen { position: fixed; z-index: 7000; inset: 0; width: 100vw; height: 100vh; border-radius: 0; background: var(--editor-surface); }
 .code-editor--fullscreen .code-editor__host :deep(.monaco-editor), .code-editor--fullscreen .code-editor__host :deep(.monaco-editor .overflow-guard) { border-radius: 0; }
 .code-editor--error { border-color: var(--q-negative); }
