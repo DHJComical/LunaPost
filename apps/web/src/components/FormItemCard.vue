@@ -33,5 +33,7 @@ defineProps<{ title?: string; description?: string }>()
   .form-item-card__actions { width: 100%; }
   .form-item-card__actions :deep(.q-file),
   .form-item-card__actions :deep(.q-btn:not(.q-btn--round)) { flex: 1 1 auto; max-width: 100%; }
+  .form-item-card__actions :deep(.file-button) { flex: 1 1 auto; }
+  .form-item-card__actions :deep(.file-button .q-btn) { width: 100%; }
 }
 </style>

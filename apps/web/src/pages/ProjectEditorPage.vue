@@ -25,7 +25,7 @@
               <FormGrid>
                 <q-input v-model="form.description" class="form-grid__full" outlined type="textarea" autogrow label="项目描述" required />
                 <q-input v-model="form.iconUrl" outlined label="主图标 URL" />
-                <q-file :model-value="null" outlined label="上传本站图标" accept="image/*" @update:model-value="(value) => uploadAsset(value, 'icon')" />
+                <FileButton label="上传本站图标" accept="image/*" @select="files => uploadAsset(files, 'icon')" />
                 <q-input v-model="form.iconUrls" class="form-grid__full" outlined label="更多图标 URL" hint="多个 URL 用逗号分隔" />
               </FormGrid>
             </FormSection>
@@ -44,7 +44,7 @@
             <FormSection title="项目画廊" description="展示截图、宣传图和功能预览。支持外链，也支持上传到本站。">
               <template #actions>
                 <q-btn outline dense icon="add_link" label="添加 URL" @click="galleryUrls.push('')" />
-                <q-file :model-value="null" outlined multiple accept="image/*" label="上传图片" @update:model-value="uploadGalleryFiles" />
+                <FileButton label="上传图片" accept="image/*" multiple @select="uploadGalleryFiles" />
               </template>
               <div class="gallery-editor">
                 <div v-if="galleryUrls.length" class="gallery-editor-grid">
@@ -168,7 +168,7 @@
                     </FormGrid>
                     <SectionHeading title="镜像地址" description="下载时可手动选择。">
                       <template #actions>
-                        <q-file :model-value="null" outlined label="上传本站" @update:model-value="(value) => uploadSelected(value, file)" />
+                        <FileButton label="上传本站" @select="files => uploadSelected(files, file)" />
                         <q-btn flat dense color="primary" icon="add" label="添加镜像" @click="addSource(file)" />
                       </template>
                     </SectionHeading>
@@ -263,6 +263,7 @@ import { useAuthStore } from '../stores/auth'
 import CodeEditor from '../components/CodeEditor.vue'
 import DependencyEditor from '../components/DependencyEditor.vue'
 import DependencyPanel from '../components/DependencyPanel.vue'
+import FileButton from '../components/FileButton.vue'
 import StringOptionSelect from '../components/StringOptionSelect.vue'
 import AppNotice from '../components/AppNotice.vue'
 import AppPageHeader from '../components/AppPageHeader.vue'

@@ -25,5 +25,7 @@ defineProps<{ title: string; description?: string }>()
   .section-heading__actions { width: 100%; align-items: stretch; }
   .section-heading__actions :deep(.q-btn),
   .section-heading__actions :deep(.q-file) { flex: 1 1 auto; }
+  .section-heading__actions :deep(.file-button) { flex: 1 1 auto; }
+  .section-heading__actions :deep(.file-button .q-btn) { width: 100%; }
 }
 </style>
