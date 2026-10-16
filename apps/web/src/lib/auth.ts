@@ -1,6 +1,8 @@
 import type { AccountView } from '@andrea/contracts'
+import { useI18n } from '../i18n'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
+const { t, locale } = useI18n()
 let accessToken: string | null = null
 
 export const setAccessToken = (token: string | null) => { accessToken = token }
@@ -10,10 +12,10 @@ const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(options?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', 'Accept-Language': locale.value, ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(options?.headers ?? {}) },
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error?.message ?? `请求失败：${response.status}`)
+  if (!response.ok) throw new Error(body.error?.message ?? t('common.requestFailedStatus', { status: response.status }))
   return body as T
 }
 

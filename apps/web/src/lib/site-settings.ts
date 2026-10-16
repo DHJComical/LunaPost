@@ -1,5 +1,8 @@
 import type { SiteSettings } from '@andrea/contracts'
 import { ref } from 'vue'
+import { useI18n } from '../i18n'
+
+const { locale } = useI18n()
 
 export const siteName = ref('LunaPost')
 export const siteIconUrl = ref('/assets/projects/luna-launcher/icon.png')
@@ -24,7 +27,7 @@ export const loadSiteAppearance = async () => {
   if (import.meta.env.VITE_STATIC_MODE === 'true') return
   const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
   try {
-    const response = await fetch(`${baseUrl}/api/v1/settings`)
+    const response = await fetch(`${baseUrl}/api/v1/settings`, { headers: { 'Accept-Language': locale.value } })
     if (!response.ok) return
     const body = await response.json() as { settings?: Pick<SiteSettings, 'appearance'> }
     applySiteAppearance(body.settings?.appearance)

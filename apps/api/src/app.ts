@@ -3,6 +3,7 @@ import { externalDependencySchema, dependencyRequestSchema, resolveDependencies,
 import { cors } from 'hono/cors'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { Hono } from 'hono'
+import { translateApiText as apiT } from './i18n.js'
 import { accountMetadataSchema, catalogSchema, loginSchema, organizationSchema, projectSchema, registerSchema, setupInitializeSchema, type Catalog, type Organization, type Project, type Source, type SiteSettings, type ModerationPolicy } from '@andrea/contracts'
 import { exampleCatalog } from '@andrea/contracts/catalog'
 import { accountView, createJwt, D1AccountStore, hashApiKey, hashPassword, hashSessionId, MemoryAccountStore, type AccountRecord, type AccountRole, type AccountStore, type ProjectMemberRole, verifyJwt, verifyPassword } from './auth.js'
@@ -37,12 +38,24 @@ const regionForCountry = (country?: string) => {
   return 'GLOBAL'
 }
 
-const getCatalog = (raw?: string): Catalog => {
-  if (!raw) return exampleCatalog
+const localizedExampleCatalog = (acceptLanguage?: string): Catalog => ({
+  ...exampleCatalog,
+  projects: exampleCatalog.projects.map((project) => ({
+    ...project,
+    description: apiT(acceptLanguage, 'catalog.exampleDescription'),
+    body: apiT(acceptLanguage, 'catalog.exampleBody'),
+    cdnRules: (project.cdnRules ?? []).map((rule) => ({ ...rule, label: apiT(acceptLanguage, 'catalog.cdnRuleLabel') })),
+    versions: project.versions.map((version) => ({ ...version, changelog: apiT(acceptLanguage, 'catalog.changelog') })),
+  })),
+})
+
+const getCatalog = (raw?: string, acceptLanguage?: string): Catalog => {
+  const example = localizedExampleCatalog(acceptLanguage)
+  if (!raw) return example
   try {
     return catalogSchema.parse(JSON.parse(raw))
   } catch {
-    return exampleCatalog
+    return example
   }
 }
 
@@ -85,8 +98,8 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   const memoryStore = new MemoryAccountStore()
   const getAuthStore = (c: { env: AppEnv['Bindings'] }) => options.authStore ?? (c.env.DB ? new D1AccountStore(c.env.DB) : memoryStore)
   const getStorage = (c: { env: AppEnv['Bindings'] }) => options.storage ?? (c.env.STORAGE ? new R2Storage(c.env.STORAGE) : null)
-  const getCatalogFor = async (c: { env: AppEnv['Bindings'] }): Promise<Catalog> => {
-    const base = getCatalog(c.env?.CATALOG_JSON)
+  const getCatalogFor = async (c: any): Promise<Catalog> => {
+    const base = getCatalog(c.env?.CATALOG_JSON, c.req.header('accept-language'))
     const stored = (await getAuthStore(c).listStoredProjects()).map((project) => projectSchema.parse(project))
     if (!stored.length) return base
     const overrides = new Map(stored.map((project) => [project.slug, project]))
@@ -289,7 +302,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
       return configured.includes(origin) ? origin : ''
     },
     credentials: true,
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'Accept-Language'],
     exposeHeaders: ['X-Catalog-Revision'],
   }))
 
@@ -299,13 +312,13 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.post('/api/v1/auth/register', async (c) => {
     const input = registerSchema.safeParse(await c.req.json().catch(() => null))
-    if (!input.success) return c.json({ error: { code: 'INVALID_INPUT', message: '邮箱或密码格式不正确' } }, 400)
+    if (!input.success) return c.json({ error: { code: 'INVALID_INPUT', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidEmailPassword') } }, 400)
     const registration = (await getSiteSettings(c)).registration
-    if (!registration.enabled) return c.json({ error: { code: 'REGISTRATION_CLOSED', message: '站点当前未开放注册' } }, 403)
-    if (registration.requireInviteCode && (!input.data.inviteCode || !registration.inviteCodes.includes(input.data.inviteCode))) return c.json({ error: { code: 'INVITE_CODE_REQUIRED', message: '请输入有效的邀请码' } }, 403)
+    if (!registration.enabled) return c.json({ error: { code: 'REGISTRATION_CLOSED', message: apiT(c.req.header('accept-language'), 'apiErrors.registrationClosed') } }, 403)
+    if (registration.requireInviteCode && (!input.data.inviteCode || !registration.inviteCodes.includes(input.data.inviteCode))) return c.json({ error: { code: 'INVITE_CODE_REQUIRED', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidInviteCode') } }, 403)
     const email = input.data.email.toLowerCase()
     const store = getAuthStore(c)
-    if (await store.findAccountByEmail(email)) return c.json({ error: { code: 'EMAIL_EXISTS', message: '该邮箱已经注册' } }, 409)
+    if (await store.findAccountByEmail(email)) return c.json({ error: { code: 'EMAIL_EXISTS', message: apiT(c.req.header('accept-language'), 'apiErrors.emailAlreadyRegistered') } }, 409)
     const account = {
       id: crypto.randomUUID(),
       email,
@@ -318,7 +331,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     try {
       await store.createAccount(account)
     } catch {
-      return c.json({ error: { code: 'EMAIL_EXISTS', message: '该邮箱已经注册' } }, 409)
+      return c.json({ error: { code: 'EMAIL_EXISTS', message: apiT(c.req.header('accept-language'), 'apiErrors.emailAlreadyRegistered') } }, 409)
     }
     if (registration.requireApproval) return c.json({ account: accountView(account), pendingApproval: true }, 202)
     const sessionId = crypto.randomUUID()
@@ -336,14 +349,14 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.post('/api/v1/auth/login', async (c) => {
     const input = loginSchema.safeParse(await c.req.json().catch(() => null))
-    if (!input.success) return c.json({ error: { code: 'INVALID_INPUT', message: '邮箱或密码格式不正确' } }, 400)
+    if (!input.success) return c.json({ error: { code: 'INVALID_INPUT', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidEmailPassword') } }, 400)
     const store = getAuthStore(c)
     const account = await store.findAccountByEmail(input.data.email.toLowerCase())
     if (!account || !(await verifyPassword(input.data.password, account.passwordHash))) {
-      return c.json({ error: { code: 'INVALID_CREDENTIALS', message: '邮箱或密码错误' } }, 401)
+      return c.json({ error: { code: 'INVALID_CREDENTIALS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidCredentials') } }, 401)
     }
     const registration = (await getSiteSettings(c)).registration
-    if (registration.requireApproval && !account.verifiedAt) return c.json({ error: { code: 'ACCOUNT_PENDING_APPROVAL', message: '账户正在等待管理员审核' } }, 403)
+    if (registration.requireApproval && !account.verifiedAt) return c.json({ error: { code: 'ACCOUNT_PENDING_APPROVAL', message: apiT(c.req.header('accept-language'), 'apiErrors.accountPendingApproval') } }, 403)
     const sessionId = crypto.randomUUID()
     await store.createSession({
       idHash: await hashSessionId(sessionId),
@@ -371,9 +384,9 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.patch('/api/v1/account/profile', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const parsed = accountMetadataSchema.safeParse((await c.req.json().catch(() => null) as { metadata?: unknown } | null)?.metadata)
-    if (!parsed.success) return c.json({ error: { code: 'INVALID_PROFILE', message: '个人资料格式不正确', details: parsed.error.flatten() } }, 400)
+    if (!parsed.success) return c.json({ error: { code: 'INVALID_PROFILE', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidProfile'), details: parsed.error.flatten() } }, 400)
     const metadata = { ...parsed.data, ...(account.role === 'root' ? {} : { minecraftUuid: account.metadata?.minecraftUuid, skinUrl: account.metadata?.skinUrl, capeUrl: account.metadata?.capeUrl, uuidSource: account.metadata?.uuidSource }) }
     await getAuthStore(c).updateAccountMetadata(account.id, metadata)
     const updated = await getAuthStore(c).getAccount(account.id)
@@ -382,26 +395,26 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.patch('/api/v1/admin/accounts/:id/minecraft-profile', async (c) => {
     const administrator = await getCurrentAccount(c)
-    if (!administrator || administrator.role !== 'root') return c.json({ error: { code: 'FORBIDDEN', message: '只有 root 可以修改 Minecraft UUID' } }, 403)
+    if (!administrator || administrator.role !== 'root') return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.rootOnlyUpdateUuid') } }, 403)
     const target = await getAuthStore(c).getAccount(c.req.param('id'))
-    if (!target) return c.json({ error: { code: 'NOT_FOUND', message: '账户不存在' } }, 404)
+    if (!target) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.accountNotFound') } }, 404)
     const body = await c.req.json().catch(() => null) as { uuid?: string; skinUrl?: string | null; capeUrl?: string | null; source?: 'local' | 'mojang' | 'upstream' } | null
-    if (!body) return c.json({ error: { code: 'INVALID_INPUT', message: '请求内容不能为空' } }, 400)
+    if (!body) return c.json({ error: { code: 'INVALID_INPUT', message: apiT(c.req.header('accept-language'), 'apiErrors.emptyRequest') } }, 400)
     const uuid = body.uuid?.replaceAll('-', '').toLowerCase()
-    if (!uuid || !/^[0-9a-f]{32}$/u.test(uuid)) return c.json({ error: { code: 'INVALID_UUID', message: 'UUID 必须是 32 位十六进制值' } }, 400)
+    if (!uuid || !/^[0-9a-f]{32}$/u.test(uuid)) return c.json({ error: { code: 'INVALID_UUID', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidUuid') } }, 400)
     let metadata
-    try { metadata = accountMetadataSchema.parse({ ...(target.metadata ?? {}), minecraftUuid: uuid, skinUrl: body.skinUrl ?? target.metadata?.skinUrl ?? null, capeUrl: body.capeUrl ?? target.metadata?.capeUrl ?? null, uuidSource: body.source ?? 'local' }) } catch { return c.json({ error: { code: 'INVALID_PROFILE', message: '皮肤或披风 URL 不正确' } }, 400) }
+    try { metadata = accountMetadataSchema.parse({ ...(target.metadata ?? {}), minecraftUuid: uuid, skinUrl: body.skinUrl ?? target.metadata?.skinUrl ?? null, capeUrl: body.capeUrl ?? target.metadata?.capeUrl ?? null, uuidSource: body.source ?? 'local' }) } catch { return c.json({ error: { code: 'INVALID_PROFILE', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidSkinCapeUrl') } }, 400) }
     await getAuthStore(c).updateAccountMetadata(target.id, metadata)
     return c.json({ ok: true, id: target.id, minecraftUuid: uuid, uuidSource: metadata.uuidSource })
   })
 
   app.patch('/api/v1/account/minecraft-profile', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const body = await c.req.json().catch(() => null) as { skinUrl?: string | null; capeUrl?: string | null } | null
-    if (!body || (body.skinUrl !== undefined && body.skinUrl !== null && typeof body.skinUrl !== 'string') || (body.capeUrl !== undefined && body.capeUrl !== null && typeof body.capeUrl !== 'string')) return c.json({ error: { code: 'INVALID_PROFILE', message: '皮肤或披风地址不正确' } }, 400)
+    if (!body || (body.skinUrl !== undefined && body.skinUrl !== null && typeof body.skinUrl !== 'string') || (body.capeUrl !== undefined && body.capeUrl !== null && typeof body.capeUrl !== 'string')) return c.json({ error: { code: 'INVALID_PROFILE', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidSkinCapeAddress') } }, 400)
     const skinUrl = body.skinUrl?.trim() || null; const capeUrl = body.capeUrl?.trim() || null
-    for (const url of [skinUrl, capeUrl]) if (url && !/^https?:\/\//u.test(url) && !url.startsWith('/api/v1/storage/')) return c.json({ error: { code: 'INVALID_PROFILE', message: '只允许 HTTPS 或站内托管地址' } }, 400)
+    for (const url of [skinUrl, capeUrl]) if (url && !/^https?:\/\//u.test(url) && !url.startsWith('/api/v1/storage/')) return c.json({ error: { code: 'INVALID_PROFILE', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidSkinCapeProtocol') } }, 400)
     const metadata = accountMetadataSchema.parse({ ...(account.metadata ?? {}), skinUrl, capeUrl, uuidSource: account.metadata?.uuidSource ?? 'local' })
     await getAuthStore(c).updateAccountMetadata(account.id, metadata)
     return c.json({ account: accountView({ ...account, metadata }) })
@@ -409,7 +422,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.get('/api/v1/users', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const query = (c.req.query('query') ?? '').trim().toLowerCase()
     const projectSlug = (c.req.query('project') ?? '').trim()
     const excludedAccountIds = new Set<string>()
@@ -432,7 +445,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   app.get('/api/v1/users/:id', async (c) => {
     const store = getAuthStore(c)
     const account = await store.getAccount(c.req.param('id'))
-    if (!account) return c.json({ error: { code: 'NOT_FOUND', message: '用户不存在' } }, 404)
+    if (!account) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.userNotFound') } }, 404)
     const metadata = account.metadata ?? {}
     const handle = metadata.username || account.email.split('@')[0].replace(/[^a-zA-Z0-9_.-]/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '') || 'user'
     const catalog = await getVisibleCatalogFor(c)
@@ -454,29 +467,29 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.get('/api/v1/organizations', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     return c.json({ organizations: await getAuthStore(c).listOrganizations(account.id) })
   })
 
   app.post('/api/v1/organizations', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const body = await c.req.json().catch(() => null) as { slug?: string; name?: string; description?: string; avatarUrl?: string | null } | null
     const parsed = organizationSchema.safeParse({ id: crypto.randomUUID(), slug: body?.slug, name: body?.name, description: body?.description ?? '', avatarUrl: body?.avatarUrl ?? null, createdAt: new Date().toISOString(), ownerId: account.id })
-    if (!parsed.success) return c.json({ error: { code: 'INVALID_ORGANIZATION', message: '组织信息格式不正确', details: parsed.error.flatten() } }, 400)
-    if (await getAuthStore(c).getOrganization(parsed.data.slug)) return c.json({ error: { code: 'SLUG_EXISTS', message: '该组织标识已经存在' } }, 409)
+    if (!parsed.success) return c.json({ error: { code: 'INVALID_ORGANIZATION', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidOrganization'), details: parsed.error.flatten() } }, 400)
+    if (await getAuthStore(c).getOrganization(parsed.data.slug)) return c.json({ error: { code: 'SLUG_EXISTS', message: apiT(c.req.header('accept-language'), 'apiErrors.organizationSlugExists') } }, 409)
     try {
       await getAuthStore(c).createOrganization(parsed.data)
       await getAuthStore(c).setOrganizationMember(parsed.data.id, account.id, 'owner')
     } catch {
-      return c.json({ error: { code: 'SLUG_EXISTS', message: '该组织标识已经存在' } }, 409)
+      return c.json({ error: { code: 'SLUG_EXISTS', message: apiT(c.req.header('accept-language'), 'apiErrors.organizationSlugExists') } }, 409)
     }
     return c.json({ organization: parsed.data }, 201)
   })
 
   app.get('/api/v1/organizations/:slug', async (c) => {
     const organization = await getAuthStore(c).getOrganization(c.req.param('slug'))
-    if (!organization) return c.json({ error: { code: 'NOT_FOUND', message: '组织不存在' } }, 404)
+    if (!organization) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.organizationNotFound') } }, 404)
     const catalog = await getVisibleCatalogFor(c)
     const projects = catalog.projects.filter((project) => project.status === 'approved' && project.ownerType === 'organization' && project.ownerId === organization.id)
     return c.json({ organization, members: await getAuthStore(c).listOrganizationMembers(organization.id), projects })
@@ -484,16 +497,16 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.get('/api/v1/account/api-keys', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     return c.json({ apiKeys: await getAuthStore(c).listApiKeys(account.id) })
   })
 
   app.post('/api/v1/account/api-keys', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const body = await c.req.json().catch(() => null) as { name?: string; scopes?: unknown } | null
     const name = body?.name?.trim()
-    if (!name || name.length > 80) return c.json({ error: { code: 'INVALID_INPUT', message: 'API Key 名称不能为空且不能超过 80 个字符' } }, 400)
+    if (!name || name.length > 80) return c.json({ error: { code: 'INVALID_INPUT', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidApiKeyName') } }, 400)
     const scopes = Array.isArray(body?.scopes) ? body.scopes.filter((scope): scope is string => typeof scope === 'string').slice(0, 20) : ['read']
     const token = randomApiKey()
     const key = { id: crypto.randomUUID(), accountId: account.id, keyHash: await hashApiKey(token), name, scopes, createdAt: new Date().toISOString(), revokedAt: null }
@@ -504,9 +517,9 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.delete('/api/v1/account/api-keys/:id', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const revoked = await getAuthStore(c).revokeApiKey(account.id, c.req.param('id'))
-    if (!revoked) return c.json({ error: { code: 'NOT_FOUND', message: 'API Key 不存在或已经吊销' } }, 404)
+    if (!revoked) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.apiKeyNotFound') } }, 404)
     return c.json({ ok: true })
   })
 
@@ -521,11 +534,11 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.post('/api/v1/setup/initialize', async (c) => {
     const input = setupInitializeSchema.safeParse(await c.req.json().catch(() => null))
-    if (!input.success) return c.json({ error: { code: 'INVALID_INPUT', message: '站点名称、邮箱或密码格式不正确' } }, 400)
+    if (!input.success) return c.json({ error: { code: 'INVALID_INPUT', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidSetupInput') } }, 400)
     const setupToken = c.env.SETUP_TOKEN
-    if (setupToken && input.data.token !== setupToken) return c.json({ error: { code: 'INVALID_SETUP_TOKEN', message: '初始化令牌不正确' } }, 403)
+    if (setupToken && input.data.token !== setupToken) return c.json({ error: { code: 'INVALID_SETUP_TOKEN', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidSetupToken') } }, 403)
     const store = getAuthStore(c)
-    if (await store.countAccounts() > 0) return c.json({ error: { code: 'ALREADY_INITIALIZED', message: '服务已经初始化' } }, 409)
+    if (await store.countAccounts() > 0) return c.json({ error: { code: 'ALREADY_INITIALIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.alreadyInitialized') } }, 409)
     const account = {
       id: crypto.randomUUID(),
       email: input.data.email.toLowerCase(),
@@ -538,7 +551,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     try {
       await store.createAccount(account)
     } catch {
-      return c.json({ error: { code: 'INITIALIZATION_FAILED', message: '管理员账户创建失败' } }, 500)
+      return c.json({ error: { code: 'INITIALIZATION_FAILED', message: apiT(c.req.header('accept-language'), 'apiErrors.adminCreationFailed') } }, 500)
     }
     const sessionId = crypto.randomUUID()
     await store.createSession({
@@ -580,7 +593,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.get('/api/v1/admin/database/export', async (c) => {
     const administrator = await getCurrentAccount(c)
-    if (!administrator || administrator.role !== 'root') return c.json({ error: { code: 'FORBIDDEN', message: '只有 root 可以导出数据库快照' } }, 403)
+    if (!administrator || administrator.role !== 'root') return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.rootOnlyExportSnapshot') } }, 403)
     const store = getAuthStore(c); const summaries = await store.listAccounts(); const accounts = []
     for (const summary of summaries) { const account = await store.getAccount(summary.id); if (account) accounts.push(account) }
     const organizations = await store.listOrganizations(); const organizationMembers = []
@@ -593,8 +606,8 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   })
 
   app.post('/api/v1/admin/database/export', async (c) => {
-    const administrator = await getCurrentAccount(c); if (!administrator || administrator.role !== 'root') return c.json({ error: { code: 'FORBIDDEN', message: '只有 root 可以导出数据库快照' } }, 403)
-    const body = await c.req.json().catch(() => null) as { password?: string } | null; if (!body?.password || body.password.length < 12) return c.json({ error: { code: 'INVALID_PASSWORD', message: '快照密码至少需要 12 个字符' } }, 400)
+    const administrator = await getCurrentAccount(c); if (!administrator || administrator.role !== 'root') return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.rootOnlyExportSnapshot') } }, 403)
+    const body = await c.req.json().catch(() => null) as { password?: string } | null; if (!body?.password || body.password.length < 12) return c.json({ error: { code: 'INVALID_PASSWORD', message: apiT(c.req.header('accept-language'), 'apiErrors.snapshotPasswordTooShort') } }, 400)
     const store = getAuthStore(c); const accounts = []; for (const summary of await store.listAccounts()) { const account = await store.getAccount(summary.id); if (account) accounts.push(account) }
     const organizations = await store.listOrganizations(); const organizationMembers = []; for (const organization of organizations) organizationMembers.push({ organizationId: organization.id, members: await store.listOrganizationMembers(organization.id) }); const projects = (await getCatalogFor(c)).projects; const projectMembers = []; for (const project of projects) projectMembers.push({ projectId: project.id, members: await store.listProjectMembers(project.id) })
     const bundle = { format: 'andrea-modpost-bundle', schemaVersion: 1, createdAt: new Date().toISOString(), source: 'root-export', siteSettings: await store.getAppSetting('site_settings'), accounts, projects, projectMembers, organizations, organizationMembers }
@@ -603,11 +616,11 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.post('/api/v1/admin/database/import', async (c) => {
     const administrator = await getCurrentAccount(c)
-    if (!administrator || administrator.role !== 'root') return c.json({ error: { code: 'FORBIDDEN', message: '只有 root 可以导入数据库快照' } }, 403)
+    if (!administrator || administrator.role !== 'root') return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.rootOnlyImportSnapshot') } }, 403)
     let body = await c.req.json().catch(() => null) as any
-    if (body?.format === 'andrea-modpost-encrypted-bundle') { if (!body.password || typeof body.password !== 'string') return c.json({ error: { code: 'PASSWORD_REQUIRED', message: '加密快照需要密码' } }, 400); try { body = await decryptBundle(body, body.password) } catch { return c.json({ error: { code: 'INVALID_PASSWORD', message: '快照密码错误或文件已损坏' } }, 400) } }
-    if (!body || body.format !== 'andrea-modpost-bundle' || body.schemaVersion !== 1 || !Array.isArray(body.accounts) || !Array.isArray(body.projects) || !Array.isArray(body.organizations)) return c.json({ error: { code: 'INVALID_BUNDLE', message: '快照格式或版本不受支持' } }, 400)
-    if (body.accounts.length > 10_000 || body.projects.length > 10_000 || body.organizations.length > 2_000) return c.json({ error: { code: 'BUNDLE_TOO_LARGE', message: '快照数据量超过限制' } }, 413)
+    if (body?.format === 'andrea-modpost-encrypted-bundle') { if (!body.password || typeof body.password !== 'string') return c.json({ error: { code: 'PASSWORD_REQUIRED', message: apiT(c.req.header('accept-language'), 'apiErrors.snapshotPasswordRequired') } }, 400); try { body = await decryptBundle(body, body.password) } catch { return c.json({ error: { code: 'INVALID_PASSWORD', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidSnapshotPassword') } }, 400) } }
+    if (!body || body.format !== 'andrea-modpost-bundle' || body.schemaVersion !== 1 || !Array.isArray(body.accounts) || !Array.isArray(body.projects) || !Array.isArray(body.organizations)) return c.json({ error: { code: 'INVALID_BUNDLE', message: apiT(c.req.header('accept-language'), 'apiErrors.unsupportedSnapshotFormat') } }, 400)
+    if (body.accounts.length > 10_000 || body.projects.length > 10_000 || body.organizations.length > 2_000) return c.json({ error: { code: 'BUNDLE_TOO_LARGE', message: apiT(c.req.header('accept-language'), 'apiErrors.snapshotTooLarge') } }, 413)
     const store = getAuthStore(c); let createdAccounts = 0; let updatedAccounts = 0; let createdProjects = 0; let updatedProjects = 0; let createdOrganizations = 0; let skippedMembers = 0
     const accountIds = new Map<string, string>()
     const organizationIds = new Map<string, string>()
@@ -628,7 +641,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
       return c.json({ ok: true, summary: { createdAccounts, updatedAccounts, createdProjects, updatedProjects, createdOrganizations, skippedMembers } })
     } catch (error) {
       console.error('database import failed', error)
-      return c.json({ error: { code: 'IMPORT_FAILED', message: '快照导入失败，可能存在重复邮箱、组织成员或项目数据；已导入的项目可安全重复导入。' } }, 409)
+      return c.json({ error: { code: 'IMPORT_FAILED', message: apiT(c.req.header('accept-language'), 'apiErrors.snapshotImportConflict') } }, 409)
     }
   })
 
@@ -638,27 +651,27 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     const current = await getSiteSettings(c)
     const body = await c.req.json().catch(() => null) as Partial<SiteSettings> | null
     const appearance = body?.appearance
-    if (appearance !== undefined && (!appearance || typeof appearance !== 'object' || Array.isArray(appearance) || (appearance.roundedProjectIcons !== undefined && typeof appearance.roundedProjectIcons !== 'boolean') || (appearance.siteName !== undefined && typeof appearance.siteName !== 'string') || (appearance.siteIconUrl !== undefined && typeof appearance.siteIconUrl !== 'string'))) return c.json({ error: { code: 'INVALID_SETTINGS', message: '站点外观设置不正确' } }, 400)
+    if (appearance !== undefined && (!appearance || typeof appearance !== 'object' || Array.isArray(appearance) || (appearance.roundedProjectIcons !== undefined && typeof appearance.roundedProjectIcons !== 'boolean') || (appearance.siteName !== undefined && typeof appearance.siteName !== 'string') || (appearance.siteIconUrl !== undefined && typeof appearance.siteIconUrl !== 'string'))) return c.json({ error: { code: 'INVALID_SETTINGS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidAppearanceSettings') } }, 400)
     const roundedProjectIcons = appearance?.roundedProjectIcons ?? current.appearance.roundedProjectIcons
     const siteName = appearance?.siteName?.trim() || current.appearance.siteName
     const siteIconUrl = appearance?.siteIconUrl?.trim() ?? current.appearance.siteIconUrl
-    if (!siteName || siteName.length > 80 || siteIconUrl.length > 2_000 || (siteIconUrl && !(/^(?:https?:\/\/|\/)/u.test(siteIconUrl)))) return c.json({ error: { code: 'INVALID_SETTINGS', message: '站点名称或图标地址不正确' } }, 400)
-    if (administrator.role !== 'root' && (siteName !== current.appearance.siteName || siteIconUrl !== current.appearance.siteIconUrl)) return c.json({ error: { code: 'FORBIDDEN', message: '只有 root 可以修改站点名称和图标' } }, 403)
+    if (!siteName || siteName.length > 80 || siteIconUrl.length > 2_000 || (siteIconUrl && !(/^(?:https?:\/\/|\/)/u.test(siteIconUrl)))) return c.json({ error: { code: 'INVALID_SETTINGS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidSiteIdentity') } }, 400)
+    if (administrator.role !== 'root' && (siteName !== current.appearance.siteName || siteIconUrl !== current.appearance.siteIconUrl)) return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.rootOnlyEditSiteIdentity') } }, 403)
     const registration = body?.registration
-    if (!registration || typeof registration.enabled !== 'boolean' || typeof registration.requireInviteCode !== 'boolean' || typeof registration.requireApproval !== 'boolean' || !Array.isArray(registration.inviteCodes)) return c.json({ error: { code: 'INVALID_SETTINGS', message: '注册策略设置不正确' } }, 400)
+    if (!registration || typeof registration.enabled !== 'boolean' || typeof registration.requireInviteCode !== 'boolean' || typeof registration.requireApproval !== 'boolean' || !Array.isArray(registration.inviteCodes)) return c.json({ error: { code: 'INVALID_SETTINGS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidRegistrationSettings') } }, 400)
     const inviteCodes = registration.inviteCodes.map((item) => String(item).trim()).filter(Boolean).slice(0, 100)
     const moderation = body?.moderation
-    if (!moderation || !['none', 'automatic', 'full'].includes(moderation.projectCreation ?? '') || !['none', 'automatic', 'full'].includes(moderation.fileSubmission ?? '')) return c.json({ error: { code: 'INVALID_SETTINGS', message: '审核策略必须是 none、automatic 或 full' } }, 400)
+    if (!moderation || !['none', 'automatic', 'full'].includes(moderation.projectCreation ?? '') || !['none', 'automatic', 'full'].includes(moderation.fileSubmission ?? '')) return c.json({ error: { code: 'INVALID_SETTINGS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidModerationPolicy') } }, 400)
     const automatic = { ...current.moderation.automatic, ...(moderation.automatic ?? {}) }
-    if (!['manual', 'reject'].includes(automatic.failMode) || !Number.isFinite(Number(automatic.maxFileSize)) || Number(automatic.maxFileSize) <= 0 || !Array.isArray(automatic.blockedExtensions)) return c.json({ error: { code: 'INVALID_SETTINGS', message: '自动审核设置不正确' } }, 400)
+    if (!['manual', 'reject'].includes(automatic.failMode) || !Number.isFinite(Number(automatic.maxFileSize)) || Number(automatic.maxFileSize) <= 0 || !Array.isArray(automatic.blockedExtensions)) return c.json({ error: { code: 'INVALID_SETTINGS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidAutomaticModeration') } }, 400)
     const ygg = body?.ygg ?? current.ygg
-    if (typeof ygg.enabled !== 'boolean' || typeof ygg.allowLocalAccounts !== 'boolean' || !Array.isArray(ygg.upstreams)) return c.json({ error: { code: 'INVALID_SETTINGS', message: 'Ygg 设置不正确' } }, 400)
-    const upstreams = ygg.upstreams.map((item: any, index: number) => ({ id: String(item?.id || crypto.randomUUID()).slice(0, 120), name: String(item?.name || `上游 ${index + 1}`).trim().slice(0, 120), baseUrl: String(item?.baseUrl || '').trim().replace(/\/+$/u, ''), enabled: item?.enabled !== false, priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : 0 })).filter((item: any) => item.baseUrl && /^https?:\/\//u.test(item.baseUrl)).slice(0, 20)
+    if (typeof ygg.enabled !== 'boolean' || typeof ygg.allowLocalAccounts !== 'boolean' || !Array.isArray(ygg.upstreams)) return c.json({ error: { code: 'INVALID_SETTINGS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidYggSettings') } }, 400)
+    const upstreams = ygg.upstreams.map((item: any, index: number) => ({ id: String(item?.id || crypto.randomUUID()).slice(0, 120), name: String(item?.name || apiT(c.req.header('accept-language'), 'admin.upstreamName', { number: index + 1 })).trim().slice(0, 120), baseUrl: String(item?.baseUrl || '').trim().replace(/\/+$/u, ''), enabled: item?.enabled !== false, priority: Number.isFinite(Number(item?.priority)) ? Number(item.priority) : 0 })).filter((item: any) => item.baseUrl && /^https?:\/\//u.test(item.baseUrl)).slice(0, 20)
     const mojang = body?.mojang ?? current.mojang
-    if (!mojang || typeof mojang.enabled !== 'boolean' || typeof mojang.clientId !== 'string' || !['consumers', 'common', 'organizations'].includes(mojang.tenant ?? '')) return c.json({ error: { code: 'INVALID_SETTINGS', message: 'Mojang 设置不正确' } }, 400)
+    if (!mojang || typeof mojang.enabled !== 'boolean' || typeof mojang.clientId !== 'string' || !['consumers', 'common', 'organizations'].includes(mojang.tenant ?? '')) return c.json({ error: { code: 'INVALID_SETTINGS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidMojangSettings') } }, 400)
     const yggAccessTtl = administrator.role === 'root' ? Number(ygg.accessTokenTtlSeconds) : current.ygg.accessTokenTtlSeconds
     const yggRefreshTtl = administrator.role === 'root' ? Number(ygg.refreshTokenTtlSeconds) : current.ygg.refreshTokenTtlSeconds
-    if (!Number.isInteger(yggAccessTtl) || yggAccessTtl < 300 || yggAccessTtl > 86400 || !Number.isInteger(yggRefreshTtl) || yggRefreshTtl < 3600 || yggRefreshTtl > 31536000 || yggRefreshTtl <= yggAccessTtl) return c.json({ error: { code: 'INVALID_SETTINGS', message: 'Ygg Token 有效期范围不正确' } }, 400)
+    if (!Number.isInteger(yggAccessTtl) || yggAccessTtl < 300 || yggAccessTtl > 86400 || !Number.isInteger(yggRefreshTtl) || yggRefreshTtl < 3600 || yggRefreshTtl > 31536000 || yggRefreshTtl <= yggAccessTtl) return c.json({ error: { code: 'INVALID_SETTINGS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidYggTokenLifetime') } }, 400)
     const settings: SiteSettings = { appearance: { roundedProjectIcons, siteName, siteIconUrl }, registration: { enabled: registration.enabled, requireInviteCode: registration.requireInviteCode, requireApproval: registration.requireApproval, inviteCodes }, moderation: { projectCreation: moderation.projectCreation as ModerationPolicy, fileSubmission: moderation.fileSubmission as ModerationPolicy, automatic: { ...automatic, maxFileSize: Number(automatic.maxFileSize), blockedExtensions: automatic.blockedExtensions.map((item) => String(item).toLowerCase().replace(/^\./u, '')).filter(Boolean) } }, ygg: { enabled: ygg.enabled, allowLocalAccounts: ygg.allowLocalAccounts, accessTokenTtlSeconds: yggAccessTtl, refreshTokenTtlSeconds: yggRefreshTtl, upstreams }, mojang: { enabled: mojang.enabled, clientId: mojang.clientId.trim().slice(0, 200), tenant: mojang.tenant } }
     await saveSiteSettings(c, settings)
     return c.json({ settings })
@@ -667,9 +680,9 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   app.patch('/api/v1/admin/accounts/:id/verification', async (c) => {
     if (!await requireAdmin(c)) return c.json({ error: { code: 'FORBIDDEN', message: 'Admin access required' } }, 403)
     const body = await c.req.json().catch(() => null) as { approved?: boolean } | null
-    if (typeof body?.approved !== 'boolean') return c.json({ error: { code: 'INVALID_INPUT', message: 'approved 必须是布尔值' } }, 400)
+    if (typeof body?.approved !== 'boolean') return c.json({ error: { code: 'INVALID_INPUT', message: apiT(c.req.header('accept-language'), 'apiErrors.approvedMustBeBoolean') } }, 400)
     const verifiedAt = body.approved ? new Date().toISOString() : null
-    if (!await getAuthStore(c).setAccountVerified(c.req.param('id'), verifiedAt)) return c.json({ error: { code: 'NOT_FOUND', message: '账户不存在' } }, 404)
+    if (!await getAuthStore(c).setAccountVerified(c.req.param('id'), verifiedAt)) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.accountNotFound') } }, 404)
     return c.json({ ok: true, verifiedAt })
   })
 
@@ -680,9 +693,9 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     if (!['user', 'developer', 'admin', 'root'].includes(body?.role ?? '')) return c.json({ error: { code: 'INVALID_ROLE', message: 'Role must be user, developer, admin or root' } }, 400)
     const target = await getAuthStore(c).getAccount(c.req.param('id'))
     if (!target) return c.json({ error: { code: 'NOT_FOUND', message: 'Account not found' } }, 404)
-    if (administrator.role !== 'root' && (target.role === 'root' || body?.role === 'root')) return c.json({ error: { code: 'ROOT_REQUIRED', message: '只有 root 可以管理 root 账户' } }, 403)
-    if (c.req.param('id') === administrator.id && body?.role !== administrator.role) return c.json({ error: { code: 'SELF_DEMOTION', message: '不能撤销当前管理员自己的权限' } }, 409)
-    if (target.role === 'root' && body?.role !== 'root' && (await getAuthStore(c).listAccounts()).filter((account) => account.role === 'root').length <= 1) return c.json({ error: { code: 'LAST_ROOT', message: '至少需要保留一个 root 账户' } }, 409)
+    if (administrator.role !== 'root' && (target.role === 'root' || body?.role === 'root')) return c.json({ error: { code: 'ROOT_REQUIRED', message: apiT(c.req.header('accept-language'), 'apiErrors.rootOnlyManageRoot') } }, 403)
+    if (c.req.param('id') === administrator.id && body?.role !== administrator.role) return c.json({ error: { code: 'SELF_DEMOTION', message: apiT(c.req.header('accept-language'), 'apiErrors.cannotDemoteSelf') } }, 409)
+    if (target.role === 'root' && body?.role !== 'root' && (await getAuthStore(c).listAccounts()).filter((account) => account.role === 'root').length <= 1) return c.json({ error: { code: 'LAST_ROOT', message: apiT(c.req.header('accept-language'), 'apiErrors.lastRootRequired') } }, 409)
     const changed = await getAuthStore(c).updateRole(c.req.param('id'), body?.role as AccountRole)
     if (!changed) return c.json({ error: { code: 'NOT_FOUND', message: 'Account not found' } }, 404)
     return c.json({ ok: true, id: c.req.param('id'), role: body?.role })
@@ -692,15 +705,15 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     const administrator = await requireAdmin(c)
     if (!administrator) return c.json({ error: { code: 'FORBIDDEN', message: 'Admin access required' } }, 403)
     const id = c.req.param('id')
-    if (id === administrator.id) return c.json({ error: { code: 'SELF_DELETE', message: '不能删除当前登录账户' } }, 409)
+    if (id === administrator.id) return c.json({ error: { code: 'SELF_DELETE', message: apiT(c.req.header('accept-language'), 'apiErrors.cannotDeleteSelf') } }, 409)
     const accounts = await getAuthStore(c).listAccounts()
     const target = accounts.find((account) => account.id === id)
     if (!target) return c.json({ error: { code: 'NOT_FOUND', message: 'Account not found' } }, 404)
     if (target.role === 'root') {
-      if (administrator.role !== 'root') return c.json({ error: { code: 'ROOT_REQUIRED', message: '只有 root 可以删除 root 账户' } }, 403)
-      if (accounts.filter((account) => account.role === 'root').length <= 1) return c.json({ error: { code: 'LAST_ROOT', message: '至少需要保留一个 root 账户' } }, 409)
+      if (administrator.role !== 'root') return c.json({ error: { code: 'ROOT_REQUIRED', message: apiT(c.req.header('accept-language'), 'apiErrors.rootOnlyDeleteRoot') } }, 403)
+      if (accounts.filter((account) => account.role === 'root').length <= 1) return c.json({ error: { code: 'LAST_ROOT', message: apiT(c.req.header('accept-language'), 'apiErrors.lastRootRequired') } }, 409)
     } else if (target.role === 'admin' && accounts.filter((account) => account.role === 'admin').length <= 1) {
-      return c.json({ error: { code: 'LAST_ADMIN', message: '至少需要保留一个管理员账户' } }, 409)
+      return c.json({ error: { code: 'LAST_ADMIN', message: apiT(c.req.header('accept-language'), 'apiErrors.lastAdminRequired') } }, 409)
     }
     const deleted = await getAuthStore(c).deleteAccount(id)
     if (!deleted) return c.json({ error: { code: 'NOT_FOUND', message: 'Account not found' } }, 404)
@@ -727,12 +740,12 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     const reviewer = await requireAdmin(c)
     if (!reviewer) return c.json({ error: { code: 'FORBIDDEN', message: 'Admin access required' } }, 403)
     const slug = c.req.param('slug'); const body = await c.req.json().catch(() => null) as { decision?: string; note?: string } | null
-    if (body?.decision !== 'approve' && body?.decision !== 'reject') return c.json({ error: { code: 'INVALID_DECISION', message: 'decision 必须是 approve 或 reject' } }, 400)
+    if (body?.decision !== 'approve' && body?.decision !== 'reject') return c.json({ error: { code: 'INVALID_DECISION', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidReviewDecision') } }, 400)
     const project = await getAuthStore(c).getStoredProject(slug)
-    if (!project) return c.json({ error: { code: 'STATIC_PROJECT', message: '静态项目必须在 GitHub Catalog 中修改' } }, 409)
+    if (!project) return c.json({ error: { code: 'STATIC_PROJECT', message: apiT(c.req.header('accept-language'), 'apiErrors.staticProjectEdit') } }, 409)
     const status = body.decision === 'approve' ? 'approved' as const : 'rejected' as const
     await getAuthStore(c).saveStoredProject({ ...project, status, versions: project.versions.map((version) => ({ ...version, files: version.files.map((file) => file.reviewStatus === 'pending' ? { ...file, reviewStatus: status, reviewNote: body.note, reviewedAt: new Date().toISOString(), reviewedBy: reviewer.id } : file) })) })
-    if (project.ownerType === 'account' && project.ownerId) await getAuthStore(c).createNotification({ id: crypto.randomUUID(), accountId: project.ownerId, type: `project_${status}`, title: status === 'approved' ? '项目审核通过' : '项目审核未通过', body: body.note ?? '', data: { slug }, readAt: null, createdAt: new Date().toISOString() })
+    if (project.ownerType === 'account' && project.ownerId) await getAuthStore(c).createNotification({ id: crypto.randomUUID(), accountId: project.ownerId, type: `project_${status}`, title: status === 'approved' ? apiT(c.req.header('accept-language'), 'notifications.projectApproved') : apiT(c.req.header('accept-language'), 'notifications.projectRejected'), body: body.note ?? '', data: { slug }, readAt: null, createdAt: new Date().toISOString() })
     return c.json({ ok: true, status })
   })
 
@@ -740,11 +753,11 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     const reviewer = await requireAdmin(c)
     if (!reviewer) return c.json({ error: { code: 'FORBIDDEN', message: 'Admin access required' } }, 403)
     const body = await c.req.json().catch(() => null) as { decision?: string; note?: string } | null
-    if (body?.decision !== 'approve' && body?.decision !== 'reject') return c.json({ error: { code: 'INVALID_DECISION', message: 'decision 必须是 approve 或 reject' } }, 400)
+    if (body?.decision !== 'approve' && body?.decision !== 'reject') return c.json({ error: { code: 'INVALID_DECISION', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidReviewDecision') } }, 400)
     const catalog = await getCatalogFor(c); const match = catalog.projects.find((project) => project.versions.some((version) => version.files.some((file) => file.id === c.req.param('fileId'))))
-    if (!match) return c.json({ error: { code: 'NOT_FOUND', message: '文件不存在' } }, 404)
+    if (!match) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.fileNotFound') } }, 404)
     const project = await getAuthStore(c).getStoredProject(match.slug)
-    if (!project) return c.json({ error: { code: 'STATIC_PROJECT', message: '静态项目必须在 GitHub Catalog 中修改' } }, 409)
+    if (!project) return c.json({ error: { code: 'STATIC_PROJECT', message: apiT(c.req.header('accept-language'), 'apiErrors.staticProjectEdit') } }, 409)
     const status = body.decision === 'approve' ? 'approved' as const : 'rejected' as const
     const now = new Date().toISOString()
     await getAuthStore(c).saveStoredProject({ ...project, versions: project.versions.map((version) => ({ ...version, files: version.files.map((file) => file.id === c.req.param('fileId') ? { ...file, reviewStatus: status, reviewNote: body.note, reviewedAt: now, reviewedBy: reviewer.id } : file) })) })
@@ -753,21 +766,21 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.post('/api/v1/admin/projects', async (c) => {
     const owner = await getCurrentAccount(c)
-    if (!owner) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
-    if (!canPublishAccount(owner)) return c.json({ error: { code: 'PUBLISHER_REQUIRED', message: '只有管理员或开发者可以发布项目' } }, 403)
+    if (!owner) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
+    if (!canPublishAccount(owner)) return c.json({ error: { code: 'PUBLISHER_REQUIRED', message: apiT(c.req.header('accept-language'), 'apiErrors.publisherRequired') } }, 403)
     const parsed = projectSchema.safeParse(await c.req.json().catch(() => null))
-    if (!parsed.success) return c.json({ error: { code: 'INVALID_PROJECT', message: '项目数据格式不正确', details: parsed.error.flatten() } }, 400)
+    if (!parsed.success) return c.json({ error: { code: 'INVALID_PROJECT', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidProject'), details: parsed.error.flatten() } }, 400)
     const existing = await getCatalogFor(c)
     const dependencyErrors = validateDependencies(parsed.data, await getVisibleCatalogFor(c))
     if (dependencyErrors.length) return c.json({ error: { code: 'INVALID_DEPENDENCIES', message: dependencyErrors.join('; ') } }, 400)
-    if (existing.projects.some((project) => project.slug === parsed.data.slug)) return c.json({ error: { code: 'SLUG_EXISTS', message: '该 Slug 已经存在' } }, 409)
+    if (existing.projects.some((project) => project.slug === parsed.data.slug)) return c.json({ error: { code: 'SLUG_EXISTS', message: apiT(c.req.header('accept-language'), 'apiErrors.slugExists') } }, 409)
     let ownerId = owner.id
     const ownerType = parsed.data.ownerType ?? 'account'
     if (ownerType === 'organization') {
-      if (!parsed.data.ownerId) return c.json({ error: { code: 'ORGANIZATION_REQUIRED', message: '请选择项目所属组织' } }, 400)
+      if (!parsed.data.ownerId) return c.json({ error: { code: 'ORGANIZATION_REQUIRED', message: apiT(c.req.header('accept-language'), 'apiErrors.organizationRequired') } }, 400)
       const organization = await getAuthStore(c).getOrganization(parsed.data.ownerId)
       const membership = organization ? (await getAuthStore(c).listOrganizationMembers(organization.id)).find((member) => member.accountId === owner.id) : null
-      if (!organization || !membership || !['owner', 'admin'].includes(membership.role)) return c.json({ error: { code: 'ORGANIZATION_FORBIDDEN', message: '你没有权限代表这个组织发布项目' } }, 403)
+      if (!organization || !membership || !['owner', 'admin'].includes(membership.role)) return c.json({ error: { code: 'ORGANIZATION_FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.organizationPublishForbidden') } }, 403)
       ownerId = organization.id
     }
     let project = { ...parsed.data, ownerType, ownerId }
@@ -784,17 +797,17 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.put('/api/v1/admin/projects/:slug', async (c) => {
     const editor = await getCurrentAccount(c)
-    if (!editor || !canPublishAccount(editor)) return c.json({ error: { code: 'PUBLISHER_REQUIRED', message: '只有管理员或开发者可以编辑和发布项目' } }, 403)
+    if (!editor || !canPublishAccount(editor)) return c.json({ error: { code: 'PUBLISHER_REQUIRED', message: apiT(c.req.header('accept-language'), 'apiErrors.publisherEditRequired') } }, 403)
     const parsed = projectSchema.safeParse(await c.req.json().catch(() => null))
-    if (!parsed.success) return c.json({ error: { code: 'INVALID_PROJECT', message: '项目数据格式不正确', details: parsed.error.flatten() } }, 400)
+    if (!parsed.success) return c.json({ error: { code: 'INVALID_PROJECT', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidProject'), details: parsed.error.flatten() } }, 400)
     const slug = c.req.param('slug')
     const existing = await getCatalogFor(c)
     const dependencyErrors = validateDependencies(parsed.data, await getVisibleCatalogFor(c))
     if (dependencyErrors.length) return c.json({ error: { code: 'INVALID_DEPENDENCIES', message: dependencyErrors.join('; ') } }, 400)
     const current = existing.projects.find((project) => project.slug === slug)
     if (!current) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
-    if (!await canManageProject(c, current)) return c.json({ error: { code: 'FORBIDDEN', message: '没有项目编辑权限' } }, 403)
-    if (parsed.data.slug !== slug && existing.projects.some((project) => project.slug === parsed.data.slug)) return c.json({ error: { code: 'SLUG_EXISTS', message: '新的 Slug 已经存在' } }, 409)
+    if (!await canManageProject(c, current)) return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.projectEditForbidden') } }, 403)
+    if (parsed.data.slug !== slug && existing.projects.some((project) => project.slug === parsed.data.slug)) return c.json({ error: { code: 'SLUG_EXISTS', message: apiT(c.req.header('accept-language'), 'apiErrors.newSlugExists') } }, 409)
     if (parsed.data.slug !== slug) await getAuthStore(c).deleteStoredProject(slug)
     let project = { ...parsed.data, ownerType: current.ownerType ?? 'account', ownerId: current.ownerId }
     if (editor.role === 'developer') {
@@ -811,9 +824,9 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     const slug = c.req.param('slug')
     const current = (await getCatalogFor(c)).projects.find((project) => project.slug === slug)
     if (!current) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
-    if (!await canAdminProject(c, current)) return c.json({ error: { code: 'FORBIDDEN', message: '没有项目管理权限' } }, 403)
+    if (!await canAdminProject(c, current)) return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.projectAdminForbidden') } }, 403)
     const removed = await getAuthStore(c).deleteStoredProject(slug)
-    if (!removed) return c.json({ error: { code: 'STATIC_PROJECT', message: 'GitHub Catalog 项目需要在仓库中删除，数据库项目才可在后台删除' } }, 409)
+    if (!removed) return c.json({ error: { code: 'STATIC_PROJECT', message: apiT(c.req.header('accept-language'), 'apiErrors.staticProjectDelete') } }, 409)
     return c.json({ ok: true })
   })
 
@@ -826,12 +839,12 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   app.post('/api/v1/projects/:slug/members', async (c) => {
     const project = (await getVisibleCatalogFor(c)).projects.find((item) => item.slug === c.req.param('slug'))
     if (!project) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
-    if (!await canAdminProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: '没有成员管理权限' } }, 403)
+    if (!await canAdminProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.memberAdminForbidden') } }, 403)
     const body = await c.req.json().catch(() => null) as { email?: string; accountId?: string; role?: string } | null
     const account = body?.accountId ? await getAuthStore(c).getAccount(body.accountId) : body?.email ? await getAuthStore(c).findAccountByEmail(body.email.toLowerCase()) : null
-    if (!account) return c.json({ error: { code: 'ACCOUNT_NOT_FOUND', message: '找不到这个账户' } }, 404)
+    if (!account) return c.json({ error: { code: 'ACCOUNT_NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.accountLookupFailed') } }, 404)
     const role = body?.role as Exclude<ProjectMemberRole, 'owner'>
-    if (!['admin', 'editor', 'reviewer', 'member'].includes(role)) return c.json({ error: { code: 'INVALID_ROLE', message: '无效的项目角色' } }, 400)
+    if (!['admin', 'editor', 'reviewer', 'member'].includes(role)) return c.json({ error: { code: 'INVALID_ROLE', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidProjectRole') } }, 400)
     await getAuthStore(c).setProjectMember(project.id, account.id, role)
     return c.json({ members: await getAuthStore(c).listProjectMembers(project.id) }, 201)
   })
@@ -839,10 +852,10 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   app.patch('/api/v1/projects/:slug/members/:accountId', async (c) => {
     const project = (await getVisibleCatalogFor(c)).projects.find((item) => item.slug === c.req.param('slug'))
     if (!project) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
-    if (!await canAdminProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: '没有成员管理权限' } }, 403)
+    if (!await canAdminProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.memberAdminForbidden') } }, 403)
     const body = await c.req.json().catch(() => null) as { role?: string } | null
     const role = body?.role as Exclude<ProjectMemberRole, 'owner'>
-    if (!['admin', 'editor', 'reviewer', 'member'].includes(role)) return c.json({ error: { code: 'INVALID_ROLE', message: '无效的项目角色' } }, 400)
+    if (!['admin', 'editor', 'reviewer', 'member'].includes(role)) return c.json({ error: { code: 'INVALID_ROLE', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidProjectRole') } }, 400)
     await getAuthStore(c).setProjectMember(project.id, c.req.param('accountId'), role)
     return c.json({ members: await getAuthStore(c).listProjectMembers(project.id) })
   })
@@ -850,8 +863,8 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   app.delete('/api/v1/projects/:slug/members/:accountId', async (c) => {
     const project = (await getVisibleCatalogFor(c)).projects.find((item) => item.slug === c.req.param('slug'))
     if (!project) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
-    if (!await canAdminProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: '没有成员管理权限' } }, 403)
-    if (project.ownerId === c.req.param('accountId')) return c.json({ error: { code: 'OWNER_REQUIRED', message: '所有者不能被移除' } }, 409)
+    if (!await canAdminProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.memberAdminForbidden') } }, 403)
+    if (project.ownerId === c.req.param('accountId')) return c.json({ error: { code: 'OWNER_REQUIRED', message: apiT(c.req.header('accept-language'), 'apiErrors.ownerCannotRemove') } }, 409)
     await getAuthStore(c).removeProjectMember(project.id, c.req.param('accountId'))
     return c.json({ ok: true })
   })
@@ -860,52 +873,52 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
     const project = (await getVisibleCatalogFor(c)).projects.find((item) => item.slug === c.req.param('slug'))
     const inviter = await getCurrentAccount(c)
     if (!project) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
-    if (!inviter || !await canAdminProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: '没有邀请成员权限' } }, 403)
+    if (!inviter || !await canAdminProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.invitationForbidden') } }, 403)
     const body = await c.req.json().catch(() => null) as { email?: string; role?: string } | null
     const email = body?.email?.trim().toLowerCase()
     const role = body?.role as Exclude<ProjectMemberRole, 'owner'>
-    if (!email || !email.includes('@')) return c.json({ error: { code: 'INVALID_INPUT', message: '请输入有效邮箱' } }, 400)
-    if (!['admin', 'editor', 'reviewer', 'member'].includes(role)) return c.json({ error: { code: 'INVALID_ROLE', message: '无效的项目角色' } }, 400)
+    if (!email || !email.includes('@')) return c.json({ error: { code: 'INVALID_INPUT', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidEmail') } }, 400)
+    if (!['admin', 'editor', 'reviewer', 'member'].includes(role)) return c.json({ error: { code: 'INVALID_ROLE', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidProjectRole') } }, 400)
     const invitee = await getAuthStore(c).findAccountByEmail(email)
     const invitation = { id: crypto.randomUUID(), projectId: project.id, projectSlug: project.slug, inviterId: inviter.id, inviteeId: invitee?.id ?? null, email, role, status: 'pending' as const, createdAt: new Date().toISOString() }
     await getAuthStore(c).createInvitation(invitation)
-    if (invitee) await getAuthStore(c).createNotification({ id: crypto.randomUUID(), accountId: invitee.id, type: 'project_invitation', title: `项目邀请：${project.title}`, body: `${inviter.email} 邀请你加入项目，角色为 ${role}。`, data: { invitationId: invitation.id, projectSlug: project.slug }, readAt: null, createdAt: invitation.createdAt })
+    if (invitee) await getAuthStore(c).createNotification({ id: crypto.randomUUID(), accountId: invitee.id, type: 'project_invitation', title: apiT(c.req.header('accept-language'), 'notifications.invitationTitle', { project: project.title }), body: apiT(c.req.header('accept-language'), 'notifications.invitationBody', { email: inviter.email, role: apiT(c.req.header('accept-language'), `roles.${role}`) }), data: { invitationId: invitation.id, projectSlug: project.slug }, readAt: null, createdAt: invitation.createdAt })
     return c.json({ invitation }, 201)
   })
 
   app.get('/api/v1/account/invitations', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     return c.json({ invitations: await getAuthStore(c).listInvitations(account.id, account.email) })
   })
 
   app.patch('/api/v1/account/invitations/:id', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const body = await c.req.json().catch(() => null) as { status?: string } | null
-    if (body?.status !== 'accepted' && body?.status !== 'declined') return c.json({ error: { code: 'INVALID_STATUS', message: '状态必须是 accepted 或 declined' } }, 400)
+    if (body?.status !== 'accepted' && body?.status !== 'declined') return c.json({ error: { code: 'INVALID_STATUS', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidInvitationStatus') } }, 400)
     const changed = await getAuthStore(c).respondInvitation(c.req.param('id'), account.id, body.status)
-    if (!changed) return c.json({ error: { code: 'NOT_FOUND', message: '邀请不存在或已经处理' } }, 404)
+    if (!changed) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.invitationNotFound') } }, 404)
     return c.json({ ok: true })
   })
 
   app.get('/api/v1/account/notifications', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     return c.json({ notifications: await getAuthStore(c).listNotifications(account.id) })
   })
 
   app.patch('/api/v1/account/notifications/:id/read', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const changed = await getAuthStore(c).markNotificationRead(account.id, c.req.param('id'))
-    if (!changed) return c.json({ error: { code: 'NOT_FOUND', message: '消息不存在' } }, 404)
+    if (!changed) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.notificationNotFound') } }, 404)
     return c.json({ ok: true })
   })
 
   app.get('/api/v1/account/favorites', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const catalog = await getVisibleCatalogFor(c)
     const records = await getAuthStore(c).listProjectFavorites(account.id)
     const projects = await enrichProjects(c, records.map((record) => catalog.projects.find((project) => project.slug === record.projectSlug)).filter((project): project is Project => Boolean(project)))
@@ -923,7 +936,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.put('/api/v1/projects/:slug/favorite', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const project = (await getVisibleCatalogFor(c)).projects.find((item) => item.slug === c.req.param('slug'))
     if (!project) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
     await getAuthStore(c).setProjectFavorite(account.id, project.slug, true)
@@ -933,7 +946,7 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.delete('/api/v1/projects/:slug/favorite', async (c) => {
     const account = await getCurrentAccount(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
     const project = (await getVisibleCatalogFor(c)).projects.find((item) => item.slug === c.req.param('slug'))
     if (!project) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
     await getAuthStore(c).setProjectFavorite(account.id, project.slug, false)
@@ -943,9 +956,9 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
 
   app.get('/api/v1/storage/:id', async (c) => {
     const storage = getStorage(c)
-    if (!storage) return c.json({ error: { code: 'STORAGE_UNAVAILABLE', message: '文件存储未配置' } }, 503)
+    if (!storage) return c.json({ error: { code: 'STORAGE_UNAVAILABLE', message: apiT(c.req.header('accept-language'), 'apiErrors.storageNotConfigured') } }, 503)
     const object = await storage.get(c.req.param('id'))
-    if (!object) return c.json({ error: { code: 'NOT_FOUND', message: '文件不存在' } }, 404)
+    if (!object) return c.json({ error: { code: 'NOT_FOUND', message: apiT(c.req.header('accept-language'), 'apiErrors.fileNotFound') } }, 404)
     c.header('Content-Type', object.contentType)
     c.header('Cache-Control', 'public, max-age=31536000, immutable')
     if (object.filename) c.header('Content-Disposition', `inline; filename="${object.filename.replaceAll('"', '')}"`)
@@ -955,13 +968,13 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   app.post('/api/v1/account/uploads', async (c) => {
     const account = await getCurrentAccount(c)
     const storage = getStorage(c)
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
-    if (!storage) return c.json({ error: { code: 'STORAGE_UNAVAILABLE', message: '文件存储未配置' } }, 503)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
+    if (!storage) return c.json({ error: { code: 'STORAGE_UNAVAILABLE', message: apiT(c.req.header('accept-language'), 'apiErrors.storageNotConfigured') } }, 503)
     const form = await c.req.parseBody(); const upload = form.file
-    if (!(upload instanceof File)) return c.json({ error: { code: 'INVALID_FILE', message: '请提供 file 字段' } }, 400)
+    if (!(upload instanceof File)) return c.json({ error: { code: 'INVALID_FILE', message: apiT(c.req.header('accept-language'), 'apiErrors.fileRequired') } }, 400)
     const purpose = typeof form.purpose === 'string' ? form.purpose : ''
-    if (purpose === 'skin' && (upload.size > 2 * 1024 * 1024 || !['image/png', 'image/jpeg'].includes(upload.type))) return c.json({ error: { code: 'INVALID_SKIN', message: '皮肤或披风必须是 2 MB 以内的 PNG/JPEG 图片' } }, 413)
-    if (upload.size > 20 * 1024 * 1024) return c.json({ error: { code: 'FILE_TOO_LARGE', message: '图片不能超过 20 MB' } }, 413)
+    if (purpose === 'skin' && (upload.size > 2 * 1024 * 1024 || !['image/png', 'image/jpeg'].includes(upload.type))) return c.json({ error: { code: 'INVALID_SKIN', message: apiT(c.req.header('accept-language'), 'apiErrors.invalidSkinCapeFile') } }, 413)
+    if (upload.size > 20 * 1024 * 1024) return c.json({ error: { code: 'FILE_TOO_LARGE', message: apiT(c.req.header('accept-language'), 'apiErrors.imageTooLarge') } }, 413)
     const id = crypto.randomUUID(); await storage.put(id, await upload.arrayBuffer(), upload.type || 'application/octet-stream', upload.name)
     const origin = new URL(c.env?.PUBLIC_BASE_URL || c.req.url).origin
     return c.json({ id, url: new URL(`/api/v1/storage/${id}`, origin).href, name: upload.name, size: upload.size }, 201)
@@ -979,16 +992,16 @@ export const createApp = (options: { authStore?: AccountStore; storage?: Storage
   app.post('/api/v1/projects/:slug/files', async (c) => {
     const project = (await getCatalogFor(c)).projects.find((item) => item.slug === c.req.param('slug'))
     if (!project) return c.json({ error: { code: 'NOT_FOUND', message: 'Project not found' } }, 404)
-    if (!await canManageProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: '没有文件上传权限' } }, 403)
+    if (!await canManageProject(c, project)) return c.json({ error: { code: 'FORBIDDEN', message: apiT(c.req.header('accept-language'), 'apiErrors.fileUploadForbidden') } }, 403)
     const storage = getStorage(c)
-    if (!storage) return c.json({ error: { code: 'STORAGE_UNAVAILABLE', message: '文件存储未配置' } }, 503)
+    if (!storage) return c.json({ error: { code: 'STORAGE_UNAVAILABLE', message: apiT(c.req.header('accept-language'), 'apiErrors.storageNotConfigured') } }, 503)
     const form = await c.req.parseBody()
     const upload = form.file
-    if (!(upload instanceof File)) return c.json({ error: { code: 'INVALID_FILE', message: '请提供 file 字段' } }, 400)
+    if (!(upload instanceof File)) return c.json({ error: { code: 'INVALID_FILE', message: apiT(c.req.header('accept-language'), 'apiErrors.fileRequired') } }, 400)
     const settings = await getSiteSettings(c)
     const extension = upload.name.split('.').pop()?.toLowerCase() ?? ''
-    if (upload.size > Math.min(512 * 1024 * 1024, settings.moderation.automatic.maxFileSize)) return c.json({ error: { code: 'FILE_TOO_LARGE', message: '文件超过站点审核策略允许的大小' } }, 413)
-    if (settings.moderation.automatic.blockedExtensions.includes(extension)) return c.json({ error: { code: 'FILE_TYPE_BLOCKED', message: '文件扩展名被站点审核策略禁止' } }, 415)
+    if (upload.size > Math.min(512 * 1024 * 1024, settings.moderation.automatic.maxFileSize)) return c.json({ error: { code: 'FILE_TOO_LARGE', message: apiT(c.req.header('accept-language'), 'apiErrors.fileTooLarge') } }, 413)
+    if (settings.moderation.automatic.blockedExtensions.includes(extension)) return c.json({ error: { code: 'FILE_TYPE_BLOCKED', message: apiT(c.req.header('accept-language'), 'apiErrors.extensionBlocked') } }, 415)
     const id = crypto.randomUUID()
     await storage.put(id, await upload.arrayBuffer(), upload.type || 'application/octet-stream', upload.name)
     const origin = new URL(c.env?.PUBLIC_BASE_URL || c.req.url).origin

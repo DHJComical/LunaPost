@@ -1,149 +1,33 @@
 import { computed, ref } from 'vue'
+import zhCN from './locales/zh-CN'
+import enUS from './locales/en-US'
 
 export type Locale = 'zh-CN' | 'en-US'
 
-const messages: Record<Locale, Record<string, string>> = {
-  'zh-CN': {
-    'nav.discover': '发现内容',
-    'nav.host': '托管项目',
-    'nav.api': '开发者 API',
-    'nav.account': '账户',
-    'nav.admin': '管理后台',
-    'nav.publish': '发布项目',
-    'nav.signIn': '登录',
-    'nav.signUp': '注册',
-    'nav.signOut': '退出登录',
-    'nav.setup': '初始化',
-    'nav.language': '语言',
-    'nav.theme': '主题',
-    'theme.system': '跟随系统', 'theme.light': '浅色', 'theme.dark': '深色',
-    'nav.menu': '菜单',
-    'nav.openApi': '打开 API',
-    'discover.eyebrow': '{site} / DISCOVER',
-    'discover.title': '发现 Minecraft 内容',
-    'discover.subtitle': '按项目类型、游戏版本、加载器和运行环境筛选可发布的 Mod、整合包、资源包与 Shader。',
-    'discover.publish': '发布项目',
-    'discover.all': '全部内容',
-    'discover.mods': 'Mods',
-    'discover.modpacks': 'Modpacks',
-    'discover.resourcepacks': '资源包',
-    'discover.shaders': 'Shaders',
-    'discover.plugins': '插件', 'discover.tools': '独立工具',
-    'discover.filters': '筛选',
-    'discover.clear': '清除',
-    'discover.search': '搜索项目',
-    'discover.gameVersion': '游戏版本',
-    'discover.allVersions': '全部版本',
-    'discover.loader': '加载器',
-    'discover.category': '分类',
-    'discover.environment': '运行环境',
-    'discover.allEnvironments': '全部环境',
-    'discover.client': '客户端', 'discover.server': '服务端', 'discover.clientServer': '客户端/服务端',
-    'discover.apiError': '无法连接 API，请先启动服务端。',
-    'discover.note': '分类和元数据由项目作者维护，静态目录与 API 会保持一致。',
-    'discover.relevance': '相关性',
-    'discover.downloads': '下载量',
-    'discover.followers': '关注数',
-    'discover.updated': '最近更新',
-    'discover.projects': '{count} 个项目',
-    'discover.matches': '匹配“{query}”',
-    'discover.featured': '精选',
-    'discover.versions': '{count} 版本',
-    'discover.noResults': '没有找到匹配项目',
-    'discover.tryAgain': '尝试清除筛选，或搜索其他关键词。',
-    'discover.clearFilters': '清除筛选',
-    'discover.listView': '列表',
-    'discover.gridView': '网格',
-    'common.required': '必需',
-    'common.optional': '可选',
-    'common.unsupported': '不支持',
-    'common.unknown': '未声明',
-    'common.files': '个文件', 'common.noGameVersion': '未声明游戏版本', 'common.noLoader': '未声明加载器',
-    'category.adventure': '冒险', 'category.optimization': '优化', 'category.technology': '科技', 'category.magic': '魔法', 'category.decoration': '装饰', 'category.library': '库', 'category.utility': '实用工具', 'category.storage': '存储', 'category.worldgen': '世界生成', 'category.food': '食物', 'category.social': '社交',
-    'project.back': '返回 Discover', 'project.download': '下载', 'project.home': '主页', 'project.description': '描述', 'project.changelog': '更新日志', 'project.versions': '版本', 'project.wiki': 'Wiki', 'project.open': '独立打开', 'project.noDescription': '作者还没有提供详细描述。', 'project.noChangelog': '本版本没有更新日志。', 'project.noVersions': '没有符合条件的版本。', 'project.files': '个文件', 'project.compatibility': '兼容性', 'project.platforms': '平台', 'project.environments': '支持的环境', 'project.links': '链接', 'project.reportIssues': '反馈问题', 'project.viewSource': '查看源码', 'project.visitWiki': '访问 Wiki', 'project.joinDiscord': '加入 Discord', 'project.tags': '标签', 'project.creators': '参与者', 'project.details': '详细信息', 'project.license': '许可证', 'project.published': '发布于', 'project.updated': '更新于', 'project.noLicense': '未声明许可证',
-    'project.versionsTitle': '版本', 'project.versionType': '版本类型', 'project.versionType.release': '正式版', 'project.versionType.beta': '测试版', 'project.versionType.alpha': 'Alpha', 'project.gameVersion': '游戏版本', 'project.loader': '加载器', 'project.downloadFiles': '个文件', 'project.noMatchingVersions': '没有符合条件的版本。', 'project.client': '客户端', 'project.server': '服务端', 'project.licensed': '许可证', 'project.noRecord': '未记录', 'project.selectVersion': '选择游戏版本', 'project.selectVersionHint': '选择版本后再选择对应的文件和下载镜像。', 'project.gallery': '画廊', 'project.galleryImages': '张图片', 'project.licenses': '许可证', 'project.licenseFiles': '许可证文件', 'project.openLicense': '打开原文', 'project.licenseEmpty': '此许可证未填写原文，请通过 URL 查看完整内容。', 'project.openWiki': '打开 Wiki', 'project.openWindow': '新窗口打开', 'project.embedded': '内嵌', 'project.role.owner': '所有者', 'project.role.admin': '管理员', 'project.role.editor': '编辑者', 'project.role.reviewer': '审核者', 'project.role.member': '成员', 'project.sourceManaged': '本站托管', 'project.sourceDefault': '默认镜像', 'project.sourceMirror': '{region} 镜像', 'project.sourceCdn': 'CDN · {region}', 'project.noGameVersion': '未声明游戏版本', 'project.noLoader': '未声明加载器', 'auth.signInTitle': '登录 {site}', 'auth.registerTitle': '创建账户', 'apiDocs.eyebrow': '{site} / API', 'apiDocs.subtitle': '用稳定的项目、版本和下载接口把启动器、站点和自动化工具接入 {site}。',
-    'status.approved': '已发布', 'status.pending': '待审核', 'status.rejected': '已拒绝', 'status.draft': '草稿', 'status.archived': '已归档', 'status.privateHint': '未公开：只有你、协作者和管理员能看到这个项目。',
-    'admin.eyebrow': 'CONTROL CENTER', 'admin.title': '站点 Dashboard', 'admin.subtitle': '管理账户、项目、版本和托管文件。', 'admin.newProject': '新建项目', 'admin.overview': '内容概览', 'admin.quickActions': '快捷操作', 'admin.content': '内容管理', 'admin.projects': '项目', 'admin.accounts': '账户',
-    'notFound.code': '404', 'notFound.title': '页面不存在', 'notFound.description': '这个地址没有对应的页面，可能是链接过期、拼写有误，或者内容已经被移除。', 'notFound.home': '返回 Discover', 'notFound.back': '返回上一页',
-  },
-  'en-US': {
-    'nav.discover': 'Discover',
-    'nav.host': 'Host a project',
-    'nav.api': 'Developer API',
-    'nav.account': 'Account',
-    'nav.admin': 'Admin',
-    'nav.publish': 'Publish project',
-    'nav.signIn': 'Sign in',
-    'nav.signUp': 'Create account',
-    'nav.signOut': 'Sign out',
-    'nav.setup': 'Setup',
-    'nav.language': 'Language',
-    'nav.theme': 'Theme',
-    'theme.system': 'System', 'theme.light': 'Light', 'theme.dark': 'Dark',
-    'nav.menu': 'Menu',
-    'nav.openApi': 'Open API',
-    'discover.eyebrow': '{site} / DISCOVER',
-    'discover.title': 'Discover Minecraft content',
-    'discover.subtitle': 'Filter Mods, modpacks, resource packs and shaders by type, game version, loader and runtime environment.',
-    'discover.publish': 'Publish project',
-    'discover.all': 'All content',
-    'discover.mods': 'Mods',
-    'discover.modpacks': 'Modpacks',
-    'discover.resourcepacks': 'Resource packs',
-    'discover.shaders': 'Shaders',
-    'discover.plugins': 'Plugins', 'discover.tools': 'Tools',
-    'discover.filters': 'Filters',
-    'discover.clear': 'Clear',
-    'discover.search': 'Search projects',
-    'discover.gameVersion': 'Game version',
-    'discover.allVersions': 'All versions',
-    'discover.loader': 'Loader',
-    'discover.category': 'Category',
-    'discover.environment': 'Environment',
-    'discover.allEnvironments': 'All environments',
-    'discover.client': 'Client', 'discover.server': 'Server', 'discover.clientServer': 'Client/server',
-    'discover.apiError': 'Unable to connect to the API. Start the server first.',
-    'discover.note': 'Categories and metadata are maintained by project authors and shared by the static catalog and API.',
-    'discover.relevance': 'Relevance',
-    'discover.downloads': 'Downloads',
-    'discover.followers': 'Followers',
-    'discover.updated': 'Recently updated',
-    'discover.projects': '{count} projects',
-    'discover.matches': 'matching “{query}”',
-    'discover.featured': 'Featured',
-    'discover.versions': '{count} versions',
-    'discover.noResults': 'No matching projects',
-    'discover.tryAgain': 'Try clearing a filter or searching for another keyword.',
-    'discover.clearFilters': 'Clear filters',
-    'discover.listView': 'List',
-    'discover.gridView': 'Grid',
-    'common.required': 'Required',
-    'common.optional': 'Optional',
-    'common.unsupported': 'Unsupported',
-    'common.unknown': 'Not declared',
-    'common.files': 'files', 'common.noGameVersion': 'No game version declared', 'common.noLoader': 'No loader declared',
-    'category.adventure': 'Adventure', 'category.optimization': 'Optimization', 'category.technology': 'Technology', 'category.magic': 'Magic', 'category.decoration': 'Decoration', 'category.library': 'Library', 'category.utility': 'Utility', 'category.storage': 'Storage', 'category.worldgen': 'World generation', 'category.food': 'Food', 'category.social': 'Social',
-    'project.back': 'Back to Discover', 'project.download': 'Download', 'project.home': 'Home', 'project.description': 'Description', 'project.changelog': 'Changelog', 'project.versions': 'Versions', 'project.wiki': 'Wiki', 'project.open': 'Open standalone', 'project.noDescription': 'The author has not provided a detailed description yet.', 'project.noChangelog': 'No changelog was provided for this release.', 'project.noVersions': 'No versions match these filters.', 'project.files': 'files', 'project.compatibility': 'Compatibility', 'project.platforms': 'Platforms', 'project.environments': 'Supported environments', 'project.links': 'Links', 'project.reportIssues': 'Report issues', 'project.viewSource': 'View source', 'project.visitWiki': 'Visit wiki', 'project.joinDiscord': 'Join Discord', 'project.tags': 'Tags', 'project.creators': 'Creators', 'project.details': 'Details', 'project.license': 'License', 'project.published': 'Published', 'project.updated': 'Updated', 'project.noLicense': 'No license specified',
-    'project.versionsTitle': 'Versions', 'project.versionType': 'Version type', 'project.versionType.release': 'Release', 'project.versionType.beta': 'Beta', 'project.versionType.alpha': 'Alpha', 'project.gameVersion': 'Game version', 'project.loader': 'Loader', 'project.downloadFiles': 'files', 'project.noMatchingVersions': 'No versions match these filters.', 'project.client': 'Client', 'project.server': 'Server', 'project.licensed': 'Licensed', 'project.noRecord': 'No record', 'project.selectVersion': 'Select game version', 'project.selectVersionHint': 'Select a version, then choose its file and download mirror.', 'project.gallery': 'Gallery', 'project.galleryImages': 'images', 'project.licenses': 'Licenses', 'project.licenseFiles': 'License files', 'project.openLicense': 'Open original', 'project.licenseEmpty': 'This license has no original text. Open the URL to view the full text.', 'project.openWiki': 'Open Wiki', 'project.openWindow': 'Open in new window', 'project.embedded': 'Embedded', 'project.role.owner': 'Owner', 'project.role.admin': 'Admin', 'project.role.editor': 'Editor', 'project.role.reviewer': 'Reviewer', 'project.role.member': 'Member', 'project.sourceManaged': 'Hosted here', 'project.sourceDefault': 'Default mirror', 'project.sourceMirror': '{region} mirror', 'project.sourceCdn': 'CDN · {region}', 'project.noGameVersion': 'No game version declared', 'project.noLoader': 'No loader declared', 'auth.signInTitle': 'Sign in to {site}', 'auth.registerTitle': 'Create an account', 'apiDocs.eyebrow': '{site} / API', 'apiDocs.subtitle': 'Connect launchers, sites and automation to {site} through stable project, version and download endpoints.',
-    'status.approved': 'Published', 'status.pending': 'Pending review', 'status.rejected': 'Rejected', 'status.draft': 'Draft', 'status.archived': 'Archived', 'status.privateHint': 'Not public: only you, collaborators and admins can see this project.',
-    'admin.eyebrow': 'CONTROL CENTER', 'admin.title': 'Site Dashboard', 'admin.subtitle': 'Manage accounts, projects, versions and hosted files.', 'admin.newProject': 'New project', 'admin.overview': 'Overview', 'admin.quickActions': 'Quick actions', 'admin.content': 'Content', 'admin.projects': 'Projects', 'admin.accounts': 'Accounts',
-    'notFound.code': '404', 'notFound.title': 'Page not found', 'notFound.description': 'Nothing lives at this address. The link may be outdated or misspelled, or the content has been removed.', 'notFound.home': 'Back to Discover', 'notFound.back': 'Go back',
-  },
-}
+const messages: Record<Locale, Record<string, string>> = { 'zh-CN': zhCN, 'en-US': enUS }
 
 const initialLocale = typeof window !== 'undefined' && window.localStorage.getItem('andrea-locale') === 'en-US' ? 'en-US' : 'zh-CN'
 const locale = ref<Locale>(initialLocale)
 
 export const useI18n = () => {
   const currentLocale = computed(() => locale.value)
-  const languageLabel = computed(() => locale.value === 'zh-CN' ? '中文' : 'English')
+  const languageLabel = computed(() => messages[locale.value]['locale.self'])
   const t = (key: string, params: Record<string, string | number> = {}) => {
     let value = messages[locale.value][key] ?? messages['zh-CN'][key] ?? key
     for (const [name, replacement] of Object.entries(params)) value = value.replaceAll(`{${name}}`, String(replacement))
     return value
   }
+  const projectTypeLabel = (type: string) => { const key = `projectType.${type}`; return messages[locale.value][key] ? t(key) : type }
+  const statusLabel = (status: string) => { const key = `status.${status}`; return messages[locale.value][key] ? t(key) : status }
+  const versionTypeLabel = (type: string) => { const key = `project.versionType.${type}`; return messages[locale.value][key] ? t(key) : type }
+  const roleLabel = (role: string) => {
+    const keys: Record<string, string> = { owner: 'project.role.owner', admin: 'project.role.admin', editor: 'project.role.editor', reviewer: 'project.role.reviewer', member: 'project.role.member', user: 'account.role.user', developer: 'account.role.developer', root: 'account.role.root' }
+    const key = keys[role]
+    return key ? t(key) : role
+  }
   const setLocale = (next: Locale) => { locale.value = next; if (typeof window !== 'undefined') { window.localStorage.setItem('andrea-locale', next); document.documentElement.lang = next } }
-  return { locale: currentLocale, languageLabel, t, setLocale, supportedLocales: ['zh-CN', 'en-US'] as Locale[] }
+  const reviewTypeLabel = (type: string) => type === 'project' ? t('admin.reviewTypeProject') : type === 'file' ? t('admin.reviewTypeFile') : type
+  return { locale: currentLocale, languageLabel, t, setLocale, projectTypeLabel, statusLabel, versionTypeLabel, roleLabel, reviewTypeLabel, supportedLocales: ['zh-CN', 'en-US'] as Locale[] }
 }
 
 if (typeof document !== 'undefined') document.documentElement.lang = locale.value

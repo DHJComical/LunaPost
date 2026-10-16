@@ -1,69 +1,69 @@
 <template>
-  <FormSection :title="label('依赖与联动', 'Dependencies and integrations')" :description="label('声明项目依赖、可选组件和跨加载器桥接。', 'Declare project dependencies, optional components, and cross-loader bridges.')">
-    <template #actions><q-btn flat dense color="primary" icon="add" :label="label('添加依赖', 'Add dependency')" @click="add" /></template>
+  <FormSection :title="t('dependencyEditor.dependenciesAndIntegrations')" :description="t('dependencyEditor.declareProjectDependenciesOptionalComponentsAndCrossLoaderBridges')">
+    <template #actions><q-btn flat dense color="primary" icon="add" :label="t('dependencyEditor.addDependency')" @click="add" /></template>
 
-    <q-expansion-item class="editor-expansion-item" :label="label('跨加载器中间层', 'Cross-loader bridges')" icon="swap_horiz">
+    <q-expansion-item class="editor-expansion-item" :label="t('dependencyEditor.crossLoaderBridges')" icon="swap_horiz">
       <q-card-section>
-        <p>{{ label('仅声明实际验证过的组合。中间层会自动成为必需依赖；原加载器的依赖仍会检查，不会被忽略。', 'Declare tested combinations only. The middleware becomes a required dependency; original loader dependencies remain checked.') }}</p>
+        <p>{{ t('dependencyEditor.declareTestedCombinationsOnlyTheMiddlewareBecomesARequiredDependencyOriginalLoaderDependenciesRemainChecked') }}</p>
         <div class="form-item-list">
-          <FormItemCard v-for="(bridge, index) in version.loaderBridges" :key="index" :title="label('桥接组合', 'Bridge combination')" :description="bridge.viaProjectId || label('尚未选择中间层项目', 'No middleware project selected')">
-            <template #actions><q-btn flat round dense icon="delete" color="negative" :aria-label="label('删除桥接组合', 'Remove bridge')" @click="version.loaderBridges?.splice(index, 1)" /></template>
+          <FormItemCard v-for="(bridge, index) in version.loaderBridges" :key="index" :title="t('dependencyEditor.bridgeCombination')" :description="bridge.viaProjectId || t('dependencyEditor.noMiddlewareProjectSelected')">
+            <template #actions><q-btn flat round dense icon="delete" color="negative" :aria-label="t('dependencyEditor.removeBridge')" @click="version.loaderBridges?.splice(index, 1)" /></template>
             <FormGrid>
-              <StringOptionSelect v-model="bridge.fromLoader" :options="loaderOptions" :label="label('原生加载器', 'Native loader')" :hint="label('可选择或输入加载器。', 'Select or type a loader.')" :empty-label="label('输入加载器并按 Enter 添加。', 'Type a loader and press Enter to add.')" />
-              <StringOptionSelect v-model="bridge.toLoader" :options="loaderOptions" :label="label('目标加载器', 'Target loader')" :hint="label('可选择或输入加载器。', 'Select or type a loader.')" :empty-label="label('输入加载器并按 Enter 添加。', 'Type a loader and press Enter to add.')" />
-              <q-input v-model="bridge.fromLoaderVersion" class="form-grid__full" outlined :label="label('中间层提供的原加载器 API 版本（可选）', 'Source loader API version provided by bridge (optional)')" />
-              <q-input v-model="bridge.viaProjectId" outlined :label="label('中间层项目 ID', 'Middleware project ID')" />
-              <q-input v-model="bridge.viaVersionId" outlined :label="label('中间层精确版本 ID', 'Middleware exact version ID')" />
-              <q-input v-model="bridge.viaRange" outlined :label="label('中间层版本范围', 'Middleware version range')" />
-              <StringOptionSelect v-model="bridge.gameVersions" :options="version.gameVersions" multiple :label="label('支持的游戏版本', 'Supported game versions')" :hint="label('可多选，也可以输入新版本。', 'Select multiple versions or type a new one.')" :empty-label="label('输入版本并按 Enter 添加。', 'Type a version and press Enter to add.')" />
-              <q-select v-model="bridge.side" :options="['both', 'client', 'server']" outlined :label="label('运行环境', 'Side')" />
-              <q-input v-model="bridge.reason" class="form-grid__full" outlined :label="label('兼容说明', 'Compatibility notes')" />
+              <StringOptionSelect v-model="bridge.fromLoader" :options="loaderOptions" :label="t('dependencyEditor.nativeLoader')" :hint="t('dependencyEditor.selectOrTypeALoader')" :empty-label="t('dependencyEditor.typeALoaderAndPressEnterToAdd')" />
+              <StringOptionSelect v-model="bridge.toLoader" :options="loaderOptions" :label="t('dependencyEditor.targetLoader')" :hint="t('dependencyEditor.selectOrTypeALoader')" :empty-label="t('dependencyEditor.typeALoaderAndPressEnterToAdd')" />
+              <q-input v-model="bridge.fromLoaderVersion" class="form-grid__full" outlined :label="t('dependencyEditor.sourceLoaderAPIVersionProvidedByBridgeOptional')" />
+              <q-input v-model="bridge.viaProjectId" outlined :label="t('dependencyEditor.middlewareProjectID')" />
+              <q-input v-model="bridge.viaVersionId" outlined :label="t('dependencyEditor.middlewareExactVersionID')" />
+              <q-input v-model="bridge.viaRange" outlined :label="t('dependencyEditor.middlewareVersionRange')" />
+              <StringOptionSelect v-model="bridge.gameVersions" :options="version.gameVersions" multiple :label="t('dependencyEditor.supportedGameVersions')" :hint="t('dependencyEditor.selectMultipleVersionsOrTypeANewOne')" :empty-label="t('dependencyEditor.typeAVersionAndPressEnterToAdd')" />
+              <q-select v-model="bridge.side" :options="sideOptions" emit-value map-options outlined :label="t('dependencyEditor.side')" />
+              <q-input v-model="bridge.reason" class="form-grid__full" outlined :label="t('dependencyEditor.compatibilityNotes')" />
             </FormGrid>
           </FormItemCard>
         </div>
         <FormActions align="start">
-          <q-btn outline color="primary" icon="add" :label="label('添加桥接组合', 'Add bridge')" @click="(version.loaderBridges ||= []).push({ fromLoader: version.loaders[0] || '', toLoader: '', viaProjectId: '', side: 'both' })" />
+          <q-btn outline color="primary" icon="add" :label="t('dependencyEditor.addBridge')" @click="(version.loaderBridges ||= []).push({ fromLoader: version.loaders[0] || '', toLoader: '', viaProjectId: '', side: 'both' })" />
         </FormActions>
       </q-card-section>
     </q-expansion-item>
 
-    <FormItemCard v-for="(dependency, index) in modelValue" :key="dependency.id || index" :title="dependency.external ? label('外部依赖', 'External dependency') : label('站内依赖', 'Local dependency')" :description="dependency.external ? `${dependency.external.provider} · ${dependency.external.projectId || label('未绑定项目', 'Unbound project')}` : dependency.projectId || label('尚未选择项目', 'No project selected')">
-      <template #actions><q-btn flat round dense icon="delete" color="negative" :aria-label="label('删除依赖', 'Remove dependency')" @click="emit('update:modelValue', modelValue.filter((_, itemIndex) => itemIndex !== index))" /></template>
+    <FormItemCard v-for="(dependency, index) in modelValue" :key="dependency.id || index" :title="dependency.external ? t('dependencyEditor.externalDependency') : t('dependencyEditor.localDependency')" :description="dependency.external ? `${dependency.external.provider} · ${dependency.external.projectId || t('dependencyEditor.unboundProject')}` : dependency.projectId || t('dependencyEditor.noProjectSelected')">
+      <template #actions><q-btn flat round dense icon="delete" color="negative" :aria-label="t('dependencyEditor.removeDependency')" @click="emit('update:modelValue', modelValue.filter((_, itemIndex) => itemIndex !== index))" /></template>
       <FormGrid>
-        <q-select class="form-grid__full" :model-value="dependency.external?.provider || 'local'" :options="[{ label: label('站内项目', 'Local project'), value: 'local' }, { label: 'Modrinth', value: 'modrinth' }, { label: 'CurseForge', value: 'curseforge' }]" emit-value map-options outlined :label="label('依赖来源', 'Dependency source')" @update:model-value="value => setSource(dependency, value)" />
+        <q-select class="form-grid__full" :model-value="dependency.external?.provider || 'local'" :options="[{ label: t('dependencyEditor.localProject'), value: 'local' }, { label: 'Modrinth', value: 'modrinth' }, { label: 'CurseForge', value: 'curseforge' }]" emit-value map-options outlined :label="t('dependencyEditor.dependencySource')" @update:model-value="value => setSource(dependency, value)" />
         <template v-if="dependency.external">
-          <q-input v-model="dependency.external.projectId" outlined :label="dependency.external.provider === 'modrinth' ? label('MR 项目 ID 或 slug（查询后绑定）', 'MR project ID or slug (lookup to bind)') : label('CF 项目数字 ID', 'CF numeric project ID')" @update:model-value="() => { if (dependency.external) dependency.external.versionId = undefined }" />
-          <FormActions><q-btn outline color="primary" :label="label('查询并绑定', 'Look up and bind')" @click="bindExternal(dependency)" /></FormActions>
-          <q-select v-model="dependency.external.versionId" class="form-grid__full" :options="externalReleases[`${dependency.external.provider}:${dependency.external.projectId}`] || []" option-label="version" option-value="id" emit-value map-options clearable outlined :label="label('外部精确版本 / 文件（可选）', 'External release / file (optional)')" @clear="dependency.external.versionId = undefined" />
-          <a class="form-grid__full" :href="externalProjectUrl(dependency.external)" target="_blank" rel="noopener noreferrer">{{ label('打开原站项目', 'Open original project') }}</a>
+          <q-input v-model="dependency.external.projectId" outlined :label="dependency.external.provider === 'modrinth' ? t('dependencyEditor.mrProjectIDOrSlugLookupToBind') : t('dependencyEditor.cfNumericProjectID')" @update:model-value="() => { if (dependency.external) dependency.external.versionId = undefined }" />
+          <FormActions><q-btn outline color="primary" :label="t('dependencyEditor.lookUpAndBind')" @click="bindExternal(dependency)" /></FormActions>
+          <q-select v-model="dependency.external.versionId" class="form-grid__full" :options="externalReleases[`${dependency.external.provider}:${dependency.external.projectId}`] || []" option-label="version" option-value="id" emit-value map-options clearable outlined :label="t('dependencyEditor.externalReleaseFileOptional')" @clear="dependency.external.versionId = undefined" />
+          <a class="form-grid__full" :href="externalProjectUrl(dependency.external)" target="_blank" rel="noopener noreferrer">{{ t('dependencyEditor.openOriginalProject') }}</a>
         </template>
-        <q-select v-else class="form-grid__full" :model-value="dependency.projectId" use-input input-debounce="250" :options="options" option-label="title" option-value="id" emit-value map-options outlined :label="label('搜索项目', 'Search projects')" @filter="search" @update:model-value="value => { dependency.projectId = value; dependency.versionId = undefined }" />
-        <q-select v-model="dependency.dependencyType" :options="types" emit-value map-options outlined :label="label('关系', 'Relationship')" />
-        <q-select v-if="!dependency.external" v-model="dependency.versionId" :options="(releases[dependency.projectId || ''] || []).map(version => ({ label: `${version.version} · ${version.loaders.join('/')} · ${version.gameVersions.join('/')}`, value: version.id }))" emit-value map-options clearable outlined :label="label('精确发布版本（可选）', 'Exact release (optional)')" @popup-show="loadReleases(dependency.projectId)" @clear="dependency.versionId = undefined" />
-        <q-select :model-value="dependency.versionConstraint?.scheme || 'any'" :options="['any', 'semver', 'exact']" outlined :label="label('版本约束', 'Version constraint')" @update:model-value="value => dependency.versionConstraint = value === 'any' ? undefined : value === 'semver' ? { scheme: 'semver', range: '*' } : { scheme: 'exact', versions: [] }" />
+        <q-select v-else class="form-grid__full" :model-value="dependency.projectId" use-input input-debounce="250" :options="options" option-label="title" option-value="id" emit-value map-options outlined :label="t('dependencyEditor.searchProjects')" @filter="search" @update:model-value="value => { dependency.projectId = value; dependency.versionId = undefined }" />
+        <q-select v-model="dependency.dependencyType" :options="types" emit-value map-options outlined :label="t('dependencyEditor.relationship')" />
+        <q-select v-if="!dependency.external" v-model="dependency.versionId" :options="(releases[dependency.projectId || ''] || []).map(version => ({ label: `${version.version} · ${version.loaders.join('/')} · ${version.gameVersions.join('/')}`, value: version.id }))" emit-value map-options clearable outlined :label="t('dependencyEditor.exactReleaseOptional')" @popup-show="loadReleases(dependency.projectId)" @clear="dependency.versionId = undefined" />
+        <q-select :model-value="dependency.versionConstraint?.scheme || 'any'" :options="['any', 'semver', 'exact']" outlined :label="t('dependencyEditor.versionConstraint')" @update:model-value="value => dependency.versionConstraint = value === 'any' ? undefined : value === 'semver' ? { scheme: 'semver', range: '*' } : { scheme: 'exact', versions: [] }" />
         <q-input v-if="dependency.versionConstraint?.scheme === 'semver'" class="form-grid__full" v-model="dependency.versionConstraint.range" outlined label="SemVer" placeholder=">=1.0.0 &lt;2.0.0" />
-        <q-input v-if="dependency.versionConstraint?.scheme === 'exact'" class="form-grid__full" :model-value="dependency.versionConstraint.versions.join(', ')" outlined :label="label('允许的版本号（逗号分隔）', 'Allowed versions (comma separated)')" @update:model-value="value => { if (dependency.versionConstraint?.scheme === 'exact') dependency.versionConstraint.versions = csv(value) }" />
-        <StringOptionSelect :model-value="dependency.appliesTo?.loaders || []" :options="loaderOptions" multiple :label="label('适用加载器（空为全部）', 'Applicable loaders (empty: all)')" :hint="label('可多选，也可以输入新加载器。', 'Select multiple loaders or type a new one.')" :empty-label="label('输入加载器并按 Enter 添加。', 'Type a loader and press Enter to add.')" @update:model-value="values => dependency.appliesTo = { ...dependency.appliesTo, loaders: Array.isArray(values) ? values : [] }" />
-        <StringOptionSelect :model-value="dependency.appliesTo?.gameVersions || []" :options="version.gameVersions" multiple :label="label('适用游戏版本', 'Applicable game versions')" :hint="label('可多选，也可以输入新版本。', 'Select multiple versions or type a new one.')" :empty-label="label('输入版本并按 Enter 添加。', 'Type a version and press Enter to add.')" @update:model-value="values => dependency.appliesTo = { ...dependency.appliesTo, gameVersions: Array.isArray(values) ? values : [] }" />
-        <q-select :model-value="dependency.appliesTo?.side || 'both'" :options="['both', 'client', 'server']" outlined :label="label('运行环境', 'Environment')" @update:model-value="value => dependency.appliesTo = { ...dependency.appliesTo, side: value }" />
-        <q-input :model-value="dependency.appliesTo?.loaderRange || ''" outlined :label="label('加载器版本范围', 'Loader version range')" @update:model-value="value => dependency.appliesTo = { ...dependency.appliesTo, loaderRange: String(value || '') || undefined }" />
-        <q-input :model-value="dependency.when?.feature || ''" outlined :label="label('启用功能时生效', 'Enable when feature is selected')" @update:model-value="value => dependency.when = { ...dependency.when, feature: String(value || '') || undefined }" />
-        <q-input class="form-grid__full" :model-value="dependency.when?.installedProjectIds?.join(', ') || ''" outlined :label="label('这些项目已安装时生效（项目 ID）', 'Activate when projects are installed (IDs)')" @update:model-value="value => dependency.when = { ...dependency.when, installedProjectIds: csv(value) }" />
-        <q-input class="form-grid__full" v-model="dependency.reason" outlined :label="label('用途 / 联动功能说明', 'Purpose / integration description')" />
+        <q-input v-if="dependency.versionConstraint?.scheme === 'exact'" class="form-grid__full" :model-value="dependency.versionConstraint.versions.join(', ')" outlined :label="t('dependencyEditor.allowedVersionsCommaSeparated')" @update:model-value="value => { if (dependency.versionConstraint?.scheme === 'exact') dependency.versionConstraint.versions = csv(value) }" />
+        <StringOptionSelect :model-value="dependency.appliesTo?.loaders || []" :options="loaderOptions" multiple :label="t('dependencyEditor.applicableLoadersEmptyAll')" :hint="t('dependencyEditor.selectMultipleLoadersOrTypeANewOne')" :empty-label="t('dependencyEditor.typeALoaderAndPressEnterToAdd')" @update:model-value="values => dependency.appliesTo = { ...dependency.appliesTo, loaders: Array.isArray(values) ? values : [] }" />
+        <StringOptionSelect :model-value="dependency.appliesTo?.gameVersions || []" :options="version.gameVersions" multiple :label="t('dependencyEditor.applicableGameVersions')" :hint="t('dependencyEditor.selectMultipleVersionsOrTypeANewOne')" :empty-label="t('dependencyEditor.typeAVersionAndPressEnterToAdd')" @update:model-value="values => dependency.appliesTo = { ...dependency.appliesTo, gameVersions: Array.isArray(values) ? values : [] }" />
+        <q-select :model-value="dependency.appliesTo?.side || 'both'" :options="sideOptions" emit-value map-options outlined :label="t('dependencyEditor.environment')" @update:model-value="value => dependency.appliesTo = { ...dependency.appliesTo, side: value }" />
+        <q-input :model-value="dependency.appliesTo?.loaderRange || ''" outlined :label="t('dependencyEditor.loaderVersionRange')" @update:model-value="value => dependency.appliesTo = { ...dependency.appliesTo, loaderRange: String(value || '') || undefined }" />
+        <q-input :model-value="dependency.when?.feature || ''" outlined :label="t('dependencyEditor.enableWhenFeatureIsSelected')" @update:model-value="value => dependency.when = { ...dependency.when, feature: String(value || '') || undefined }" />
+        <q-input class="form-grid__full" :model-value="dependency.when?.installedProjectIds?.join(', ') || ''" outlined :label="t('dependencyEditor.activateWhenProjectsAreInstalledIDs')" @update:model-value="value => dependency.when = { ...dependency.when, installedProjectIds: csv(value) }" />
+        <q-input class="form-grid__full" v-model="dependency.reason" outlined :label="t('dependencyEditor.purposeIntegrationDescription')" />
       </FormGrid>
     </FormItemCard>
 
     <AppNotice v-if="importError" tone="error" role="alert">{{ importError }}</AppNotice>
-    <q-expansion-item class="editor-expansion-item" :label="label('导入 Mod 元数据', 'Import mod metadata')" icon="upload_file">
+    <q-expansion-item class="editor-expansion-item" :label="t('dependencyEditor.importModMetadata')" icon="upload_file">
       <q-card-section>
         <FormGrid :columns="1">
-          <q-input v-model="metadata" type="textarea" outlined autogrow :label="label('粘贴 fabric.mod.json 或 mods.toml', 'Paste fabric.mod.json or mods.toml')" />
-          <FormActions align="start"><q-btn outline color="primary" :label="label('导入并映射 Mod ID', 'Import and map mod IDs')" @click="importMetadata" /></FormActions>
+          <q-input v-model="metadata" type="textarea" outlined autogrow :label="t('dependencyEditor.pasteFabricModJsonOrModsToml')" />
+          <FormActions align="start"><q-btn outline color="primary" :label="t('dependencyEditor.importAndMapModIDs')" @click="importMetadata" /></FormActions>
         </FormGrid>
         <div v-if="imported.length" class="form-item-list">
           <FormItemCard v-for="item in imported" :key="item.modId" :title="item.modId" :description="item.rawRange">
             <FormGrid :columns="2">
-              <q-input class="form-grid__wide" v-model="item.projectId" outlined :label="label('站内项目 ID', 'Local project ID')" />
+              <q-input class="form-grid__wide" v-model="item.projectId" outlined :label="t('dependencyEditor.localProjectID')" />
               <FormActions><q-btn outline color="primary" icon="add" :disable="!item.projectId" @click="appendImported(item)" /></FormActions>
             </FormGrid>
           </FormItemCard>
@@ -87,8 +87,9 @@ import { lookupExternal } from '../lib/dependencies'
 import { useI18n } from '../i18n'
 const props = defineProps<{ modelValue: Dependency[]; version: Version }>()
 const emit = defineEmits<{ 'update:modelValue': [Dependency[]] }>()
-const { locale } = useI18n(); const label = (zh: string, en: string) => locale.value === 'zh-CN' ? zh : en
-const types = computed(() => ['required','optional','recommended','integration','incompatible','embedded'].map((value,i) => ({ value, label: locale.value === 'zh-CN' ? ['必需','可选','推荐','联动','冲突','内嵌'][i] : value })))
+const { t } = useI18n()
+const types = computed(() => ['required', 'optional', 'recommended', 'integration', 'incompatible', 'embedded'].map(value => ({ value, label: t(`dependencyType.${value}`) })))
+const sideOptions = computed(() => [{ value: 'both', label: t('dependencyType.both') }, { value: 'client', label: t('discover.client') }, { value: 'server', label: t('discover.server') }])
 const options = ref<Project[]>([])
 const loaderOptions = computed(() => [...new Set([...props.version.loaders, ...(props.version.loaderBridges || []).flatMap(bridge => [bridge.fromLoader, bridge.toLoader])])].filter(Boolean))
 const releases = ref<Record<string,Version[]>>({})

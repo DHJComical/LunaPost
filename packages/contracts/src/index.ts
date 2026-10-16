@@ -110,7 +110,7 @@ export const versionSchema = z.object({
 
 export const licenseRecordSchema = z.object({
   id: z.string(),
-  name: z.string().default('许可证'),
+  name: z.string().default(''),
   spdx: z.string().optional(),
   url: z.string().url().optional(),
   fileName: z.string().optional(),
@@ -307,7 +307,6 @@ export const organizationSchema = z.object({
 })
 
 export type Organization = z.infer<typeof organizationSchema>
-
 
 
 

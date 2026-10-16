@@ -1,16 +1,18 @@
 import { getAccessToken } from './auth'
 import type { AccountMetadata, AccountView, Organization } from '@andrea/contracts'
+import { useI18n } from '../i18n'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
+const { t, locale } = useI18n()
 
 const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}), ...(options?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', 'Accept-Language': locale.value, ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}), ...(options?.headers ?? {}) },
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error?.message ?? '请求失败')
+  if (!response.ok) throw new Error(body.error?.message ?? t('common.requestFailed'))
   return body as T
 }
 
@@ -28,7 +30,7 @@ export const updateProfile = (metadata: AccountMetadata) => request<{ account: A
 export const updateMinecraftProfile = (profile: { skinUrl?: string | null; capeUrl?: string | null }) => request<{ account: AccountView }>('/api/v1/account/minecraft-profile', { method: 'PATCH', body: JSON.stringify(profile) })
 export const startMojangDeviceCode = () => request<{ device_code: string; user_code: string; verification_uri: string; expires_in: number; interval?: number }>('/api/v1/account/mojang/device-code')
 export const pollMojangDeviceCode = (deviceCode: string) => request<{ ok: boolean; account: { minecraftUuid: string; skinUrl: string | null; capeUrl: string | null; uuidSource: string; name: string } }>('/api/v1/account/mojang/poll', { method: 'POST', body: JSON.stringify({ deviceCode }) })
-export const uploadSkinAsset = async (file: File) => { const form = new FormData(); form.append('file', file); form.append('purpose', 'skin'); const response = await fetch(`${baseUrl}/api/v1/account/uploads`, { method: 'POST', body: form, credentials: 'include', headers: getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {} }); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.error?.message ?? '皮肤上传失败'); return body as { url: string } }
+export const uploadSkinAsset = async (file: File) => { const form = new FormData(); form.append('file', file); form.append('purpose', 'skin'); const response = await fetch(`${baseUrl}/api/v1/account/uploads`, { method: 'POST', body: form, credentials: 'include', headers: { 'Accept-Language': locale.value, ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}) } }); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.error?.message ?? t('account.skinUploadFailed')); return body as { url: string } }
 export type UserSearchResult = { id: string; email: string; displayName: string; role: 'developer' | 'admin' | 'root' }
 export const searchUsers = (query: string, projectSlug?: string) => request<{ users: UserSearchResult[] }>(`/api/v1/users?query=${encodeURIComponent(query)}${projectSlug ? `&project=${encodeURIComponent(projectSlug)}` : ''}`)
 export const listOrganizations = () => request<{ organizations: Organization[] }>('/api/v1/organizations')

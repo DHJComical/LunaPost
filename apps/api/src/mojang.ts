@@ -1,6 +1,7 @@
 import type { Hono } from 'hono'
 import type { AccountStore, AccountRecord } from './auth.js'
 import { accountMetadataSchema } from '@andrea/contracts'
+import { translateApiText as apiT } from './i18n.js'
 
 type Bindings = { MICROSOFT_CLIENT_ID?: string; OAUTH_ENCRYPTION_KEY?: string; JWT_SECRET?: string }
 const json = async (response: Response) => { const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error((body as any).error_description || (body as any).errorMessage || `upstream ${response.status}`); return body as any }
@@ -11,19 +12,19 @@ export function registerMojang(app: Hono<any>, getStore: (c: any) => AccountStor
   const config = (c: any): Bindings => c.env ?? {}
   app.get('/api/v1/account/mojang/device-code', async (c) => {
     const account = await getAccount(c); const site = await getSettings?.(c); const clientId = site?.mojang?.clientId || config(c).MICROSOFT_CLIENT_ID; const tenant = site?.mojang?.tenant || 'consumers'
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
-    if (!clientId) return c.json({ error: { code: 'MOJANG_NOT_CONFIGURED', message: '尚未配置 MICROSOFT_CLIENT_ID' } }, 503)
-    if (site?.mojang && site.mojang.enabled === false) return c.json({ error: { code: 'MOJANG_DISABLED', message: '管理员已关闭 Mojang 同步' } }, 403)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
+    if (!clientId) return c.json({ error: { code: 'MOJANG_NOT_CONFIGURED', message: apiT(c.req.header('accept-language'), 'apiErrors.microsoftClientIdMissing') } }, 503)
+    if (site?.mojang && site.mojang.enabled === false) return c.json({ error: { code: 'MOJANG_DISABLED', message: apiT(c.req.header('accept-language'), 'apiErrors.mojangSyncDisabled') } }, 403)
     const response = await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/devicecode`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: clientId, scope: 'XboxLive.signin offline_access' }) })
-    try { return c.json(await json(response)) } catch (cause) { return c.json({ error: { code: 'MOJANG_UPSTREAM_ERROR', message: cause instanceof Error ? cause.message : 'Microsoft 请求失败' } }, 502) }
+    try { return c.json(await json(response)) } catch (cause) { return c.json({ error: { code: 'MOJANG_UPSTREAM_ERROR', message: cause instanceof Error ? cause.message : apiT(c.req.header('accept-language'), 'apiErrors.microsoftRequestFailed') } }, 502) }
   })
   app.post('/api/v1/account/mojang/poll', async (c) => {
     const account = await getAccount(c); const site = await getSettings?.(c); const clientId = site?.mojang?.clientId || config(c).MICROSOFT_CLIENT_ID; const tenant = site?.mojang?.tenant || 'consumers'; const encryptionSecret = config(c).OAUTH_ENCRYPTION_KEY || config(c).JWT_SECRET
-    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: '请先登录' } }, 401)
-    if (site?.mojang && site.mojang.enabled === false) return c.json({ error: { code: 'MOJANG_DISABLED', message: '管理员已关闭 Mojang 同步' } }, 403)
-    if (!clientId || !encryptionSecret) return c.json({ error: { code: 'MOJANG_NOT_CONFIGURED', message: '尚未配置 OAuth 密钥' } }, 503)
+    if (!account) return c.json({ error: { code: 'UNAUTHORIZED', message: apiT(c.req.header('accept-language'), 'apiErrors.unauthorized') } }, 401)
+    if (site?.mojang && site.mojang.enabled === false) return c.json({ error: { code: 'MOJANG_DISABLED', message: apiT(c.req.header('accept-language'), 'apiErrors.mojangSyncDisabled') } }, 403)
+    if (!clientId || !encryptionSecret) return c.json({ error: { code: 'MOJANG_NOT_CONFIGURED', message: apiT(c.req.header('accept-language'), 'apiErrors.oauthSecretMissing') } }, 503)
     const body = await c.req.json().catch(() => null) as { deviceCode?: string } | null
-    if (!body?.deviceCode) return c.json({ error: { code: 'INVALID_INPUT', message: '缺少 deviceCode' } }, 400)
+    if (!body?.deviceCode) return c.json({ error: { code: 'INVALID_INPUT', message: apiT(c.req.header('accept-language'), 'apiErrors.deviceCodeRequired') } }, 400)
     try {
       const token = await json(await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:device_code', client_id: clientId, device_code: body.deviceCode }) }))
       const xbl = await json(await fetch('https://user.auth.xboxlive.com/user/authenticate', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ Properties: { AuthMethod: 'RPS', SiteName: 'user.auth.xboxlive.com', RpsTicket: `d=${token.access_token}` }, RelyingParty: 'http://auth.xboxlive.com', TokenType: 'JWT' }) }))
@@ -36,6 +37,6 @@ export function registerMojang(app: Hono<any>, getStore: (c: any) => AccountStor
       await getStore(c).updateAccountMetadata(account.id, metadata)
       await getStore(c).saveMojangToken(account.id, await encrypt(token.refresh_token, encryptionSecret), new Date().toISOString(), token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : null)
       return c.json({ ok: true, account: { id: account.id, minecraftUuid: metadata.minecraftUuid, skinUrl: metadata.skinUrl, capeUrl: metadata.capeUrl, uuidSource: metadata.uuidSource, name: profile.name } })
-    } catch (cause) { return c.json({ error: { code: 'MOJANG_AUTH_FAILED', message: cause instanceof Error ? cause.message : 'Minecraft 官方认证失败' } }, 502) }
+    } catch (cause) { return c.json({ error: { code: 'MOJANG_AUTH_FAILED', message: cause instanceof Error ? cause.message : apiT(c.req.header('accept-language'), 'apiErrors.minecraftAuthFailed') } }, 502) }
   })
 }

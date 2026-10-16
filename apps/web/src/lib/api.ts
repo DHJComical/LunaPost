@@ -1,10 +1,12 @@
 import type { Project } from '@andrea/contracts'
+import { useI18n } from '../i18n'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
+const { locale, t } = useI18n()
 
 const request = async <T>(path: string): Promise<T> => {
-  const response = await fetch(`${baseUrl}${path}`)
-  if (!response.ok) throw new Error(`API request failed: ${response.status}`)
+  const response = await fetch(`${baseUrl}${path}`, { headers: { 'Accept-Language': locale.value } })
+  if (!response.ok) throw new Error(t('common.requestFailedStatus', { status: response.status }))
   return response.json() as Promise<T>
 }
 

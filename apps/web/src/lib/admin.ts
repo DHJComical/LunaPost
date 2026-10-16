@@ -1,15 +1,17 @@
 import type { SiteSettings } from '@andrea/contracts'
 import { getAccessToken } from './auth'
+import { useI18n } from '../i18n'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
+const { t, locale } = useI18n()
 const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}), ...(options?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', 'Accept-Language': locale.value, ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}), ...(options?.headers ?? {}) },
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.error?.message ?? '请求失败')
+  if (!response.ok) throw new Error(body.error?.message ?? t('common.requestFailed'))
   return body as T
 }
 export type AdminOverview = { accounts: number; projects: number; versions: number; files: number; downloads: number; favorites: number; topDownloads: Array<{ projectSlug: string; count: number }>; topFavorites: Array<{ projectSlug: string; count: number }> }
