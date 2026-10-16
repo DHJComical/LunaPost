@@ -4,9 +4,9 @@
       <q-toolbar class="header-shell">
         <router-link to="/" class="brand" :aria-label="siteName"><span class="brand-mark" :class="{ 'has-image': Boolean(siteIconUrl) }"><q-img v-if="siteIconUrl" :src="siteIconUrl" fit="contain" :alt="siteName" /><q-icon v-else name="hub" /></span><span class="brand-name">{{ siteName }}</span></router-link>
         <div class="desktop-nav">
-          <q-btn flat no-caps class="nav-link nav-link-active" icon="explore" :label="t('nav.discover')" to="/" />
-          <q-btn v-if="auth.canPublish" flat no-caps class="nav-link" icon="cloud_upload" :label="t('nav.host')" to="/admin/projects/new" />
-          <q-btn flat no-caps class="nav-link" icon="code" :label="t('nav.api')" to="/api" />
+          <q-btn flat no-caps class="nav-link" :class="{ 'nav-link-active': route.path === '/' }" icon="explore" :label="t('nav.discover')" to="/" />
+          <q-btn v-if="auth.canPublish" flat no-caps class="nav-link" :class="{ 'nav-link-active': route.path === '/admin' || route.path.startsWith('/admin/projects/') }" icon="cloud_upload" :label="t('nav.host')" to="/admin/projects/new" />
+          <q-btn flat no-caps class="nav-link" :class="{ 'nav-link-active': route.path === '/api' }" icon="code" :label="t('nav.api')" to="/api" />
         </div>
         <q-space />
         <div class="desktop-actions">
@@ -33,13 +33,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { applySiteAppearance, loadSiteAppearance, siteIconUrl, siteName } from './lib/site-settings'
 import { useI18n, type Locale } from './i18n'
 import { useTheme, type ThemeMode } from './theme'
 import { listInvitations, listNotifications, markNotificationRead, respondInvitation, type Invitation, type Notification } from './lib/account'
 
-const auth = useAuthStore(); const { locale, languageLabel, t, setLocale } = useI18n(); const { mode: themeMode, isDark, setThemeMode } = useTheme(); const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''; const notificationOpen = ref(false); const notificationsLoading = ref(false); const notifications = ref<Notification[]>([]); const invitations = ref<Invitation[]>([])
+const route = useRoute(); const auth = useAuthStore(); const { locale, languageLabel, t, setLocale } = useI18n(); const { mode: themeMode, isDark, setThemeMode } = useTheme(); const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''; const notificationOpen = ref(false); const notificationsLoading = ref(false); const notifications = ref<Notification[]>([]); const invitations = ref<Invitation[]>([])
 const localeOptions: { value: Locale; label: string }[] = [{ value: 'zh-CN', label: '中文' }, { value: 'en-US', label: 'English' }]
 const themeOptions = computed<{ value: ThemeMode; label: string; icon: string }[]>(() => [{ value: 'system', label: t('theme.system'), icon: 'settings_brightness' }, { value: 'light', label: t('theme.light'), icon: 'light_mode' }, { value: 'dark', label: t('theme.dark'), icon: 'dark_mode' }])
 const themeLabel = computed(() => themeOptions.value.find((item) => item.value === themeMode.value)?.label ?? t('theme.system'))
