@@ -577,13 +577,16 @@ html[data-theme='dark'] .q-menu .language-active .q-icon { color: #35d07f !impor
 html[data-theme='light'] .q-menu .language-active .q-item__label { color: #159957 !important; }
 html[data-theme='light'] .q-menu .language-active .q-icon { color: #159957 !important; }
 html[data-theme='light'] .download-source-menu .q-item:hover { background: #f0f4f8; }
-.project-editor-page { min-height: calc(100vh - 68px); }
+.project-editor-page { min-height: calc(100vh - 68px); padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important; }
 .editor-shell { overflow: hidden; border-radius: var(--app-radius-lg); background: var(--app-surface); }
 .editor-tabs { min-height: 58px; padding: 0 10px; color: var(--app-muted); background: var(--app-surface-muted); }
 .editor-tabs .q-tab { min-height: 58px; }
 .editor-tabs .q-tab--active { color: var(--app-primary-strong); }
 .editor-panels { background: transparent; }
 .editor-panels .q-tab-panel { padding: 24px; }
+.editor-action-bar { position: fixed; z-index: 3000; right: 0; bottom: 0; left: 0; padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--app-border); background: color-mix(in srgb, var(--app-surface) 94%, transparent); backdrop-filter: blur(16px); }
+.editor-action-bar__inner { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+.editor-action-bar__actions { width: 100%; justify-content: flex-end; }
 .editor-expansion-item { min-width: 0; overflow: hidden; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); color: var(--app-text); background: var(--app-surface); }
 .editor-expansion-item .q-expansion-item__container { border-radius: inherit; }
 .editor-expansion-item .q-expansion-item__content { color: var(--app-text); }
@@ -611,7 +614,8 @@ html[data-theme='light'] .q-menu .text-grey-7 {
   color: var(--app-overlay-item) !important;
 }
 @media (max-width: 600px) {
-  .project-editor-page { padding-top: 18px !important; padding-bottom: 28px !important; }
+  .project-editor-page { padding-top: 18px !important; padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important; }
+  .editor-action-bar__inner { width: calc(100% - 24px); }
   .editor-shell { border-radius: 12px; }
   .editor-tabs { padding: 0 2px; }
   .editor-tabs .q-tab { min-height: 50px; padding: 0 12px; font-size: .78rem; }

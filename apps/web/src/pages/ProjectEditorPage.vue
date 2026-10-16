@@ -247,7 +247,11 @@
           </q-tab-panel>
         </q-tab-panels>
       </q-card>
-      <FormActions class="q-mt-lg"><q-btn flat label="取消" to="/admin" /><q-btn color="primary" type="submit" :loading="saving" :label="isNew ? '创建项目' : '保存修改'" /></FormActions>
+      <div class="editor-action-bar">
+        <div class="editor-action-bar__inner">
+          <FormActions class="editor-action-bar__actions"><q-btn flat label="取消" to="/admin" /><q-btn color="primary" type="submit" :loading="saving" :label="isNew ? '创建项目' : '保存修改'" /></FormActions>
+        </div>
+      </div>
     </q-form>
   </q-page>
 </template>
