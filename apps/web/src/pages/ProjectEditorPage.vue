@@ -24,8 +24,8 @@
                 <q-file :model-value="null" outlined label="上传本站图标" accept="image/*" @update:model-value="(value) => uploadAsset(value, 'icon')" />
                 <q-input v-model="form.iconUrls" class="form-grid__full" outlined label="更多图标 URL" hint="多个 URL 用逗号分隔" />
                 <q-input v-model="form.description" class="form-grid__full" outlined type="textarea" autogrow label="项目描述" required />
-                <q-input v-model="form.loaders" outlined label="加载器" hint="多个值用逗号分隔，例如 fabric, forge" />
-                <q-input v-model="form.gameVersions" outlined label="游戏版本" hint="多个值用逗号分隔，例如 1.21.1, 1.20.1" />
+                <StringOptionSelect v-model="projectLoaders" :options="loaderOptions" multiple label="加载器" hint="可多选；搜索或输入新加载器后按 Enter 添加。" empty-label="输入加载器并按 Enter 添加。" />
+                <StringOptionSelect v-model="projectGameVersions" :options="gameVersionOptions" multiple label="游戏版本" hint="可多选；搜索或输入新版本后按 Enter 添加。" empty-label="输入版本并按 Enter 添加。" />
               </FormGrid>
             </FormSection>
           </q-tab-panel>
@@ -132,8 +132,8 @@
                   <FormGrid>
                     <q-input v-model="version.version" outlined label="版本号" />
                     <q-select v-model="version.type" outlined label="发布类型" emit-value map-options :options="versionTypes" />
-                    <q-input :model-value="version.gameVersions.join(', ')" outlined label="游戏版本" @update:model-value="(value) => version.gameVersions = csv(value)" />
-                    <q-input :model-value="version.loaders.join(', ')" outlined label="加载器" @update:model-value="(value) => version.loaders = csv(value)" />
+                    <StringOptionSelect v-model="version.gameVersions" :options="gameVersionOptions" multiple label="游戏版本" hint="可多选，也可以添加新的游戏版本。" empty-label="输入版本并按 Enter 添加。" />
+                    <StringOptionSelect v-model="version.loaders" :options="loaderOptions" multiple label="加载器" hint="可多选，也可以添加新的加载器。" empty-label="输入加载器并按 Enter 添加。" />
                     <q-input v-model="version.publishedAt" outlined label="发布时间" hint="ISO 日期，可留空" />
                     <CodeEditor :model-value="version.description ?? ''" class="form-grid__full" language="markdown" label="版本描述" height="240px" @update:model-value="value => version.description = value" />
                     <CodeEditor :model-value="version.changelog ?? ''" class="form-grid__full" language="markdown" label="更新日志" height="300px" @update:model-value="value => version.changelog = value" />
@@ -253,6 +253,7 @@ import { useAuthStore } from '../stores/auth'
 import CodeEditor from '../components/CodeEditor.vue'
 import DependencyEditor from '../components/DependencyEditor.vue'
 import DependencyPanel from '../components/DependencyPanel.vue'
+import StringOptionSelect from '../components/StringOptionSelect.vue'
 import AppNotice from '../components/AppNotice.vue'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import FormActions from '../components/FormActions.vue'
@@ -267,6 +268,16 @@ const isNew = computed(() => route.path === '/admin/projects/new' || route.param
 const versionTypes = [{ label: '正式版', value: 'release' }, { label: '测试版', value: 'beta' }, { label: 'Alpha', value: 'alpha' }]; const fileTypes = [{ label: 'Mod', value: 'mod' }, { label: '资源包', value: 'required-resource-pack' }, { label: '可选资源包', value: 'optional-resource-pack' }, { label: '源码包', value: 'source-jar' }, { label: '其他', value: 'unknown' }]; const sourceTypes = [{ label: 'GitHub Release', value: 'github_release' }, { label: '自定义 HTTP', value: 'custom_http' }, { label: '本站托管', value: 'managed' }]
 const types = [{ label: 'Mod', value: 'mod' }, { label: 'Modpack', value: 'modpack' }, { label: '资源包', value: 'resourcepack' }, { label: 'Shader', value: 'shader' }, { label: '插件', value: 'plugin' }, { label: '独立工具', value: 'tool' }]; const environmentTypes = [{ label: '必需', value: 'required' }, { label: '可选', value: 'optional' }, { label: '不支持', value: 'unsupported' }, { label: '未声明', value: 'unknown' }]; const statusOptions = [{ label: '已发布', value: 'approved' }, { label: '待审核', value: 'pending' }, { label: '草稿', value: 'draft' }, { label: '已归档', value: 'archived' }]
 const form = reactive({ id: '', title: '', slug: '', type: 'mod', ownerId: '', description: '', body: '', categories: '', keywords: '', clientSide: 'unknown', serverSide: 'unknown', status: 'approved', featured: false, iconUrl: '', iconUrls: '', repositoryUrl: '', sourceUrl: '', issuesUrl: '', discordUrl: '', donationUrls: '', license: '', wikiUrl: '', wikiHtml: '', gallery: '', homepageHtml: '', loaders: '', gameVersions: '' }); const licenses = ref<LicenseRecord[]>([]); const galleryUrls = ref<string[]>([]); const members = ref<ProjectMember[]>([]); const roleLabels: Record<string, string> = { owner: '所有者', admin: '项目管理员', editor: '编辑者', reviewer: '审核者', member: '成员' }; const inviteEmail = ref(''); const inviteRole = ref<'admin' | 'editor' | 'reviewer' | 'member'>('editor'); const inviteMessage = ref(''); const inviting = ref(false); const usersLoading = ref(false); const memberRoleOptions = [{ label: '管理员', value: 'admin' }, { label: '编辑者', value: 'editor' }, { label: '审核者', value: 'reviewer' }, { label: '成员', value: 'member' }]; const userOptions = ref<UserSearchResult[]>([]); const customLinks = ref<ProjectLink[]>([]); const cdnRules = ref<CdnRule[]>([]); const organizations = ref<Awaited<ReturnType<typeof listOrganizations>>['organizations']>([]); const ownerOptions = computed(() => [{ label: '我的账户', value: '' }, ...organizations.value.map((organization) => ({ label: `组织：${organization.name}`, value: organization.id }))])
+const projectGameVersions = computed<string[]>({
+  get: () => form.gameVersions.split(',').map((value) => value.trim()).filter(Boolean),
+  set: (values) => { form.gameVersions = values.join(', ') },
+})
+const projectLoaders = computed<string[]>({
+  get: () => form.loaders.split(',').map((value) => value.trim()).filter(Boolean),
+  set: (values) => { form.loaders = values.join(', ') },
+})
+const gameVersionOptions = computed(() => [...new Set([...projectGameVersions.value, ...visualVersions.value.flatMap((version) => version.gameVersions)])].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })))
+const loaderOptions = computed(() => [...new Set([...projectLoaders.value, ...visualVersions.value.flatMap((version) => [...version.loaders, ...(version.loaderBridges ?? []).flatMap((bridge) => [bridge.fromLoader, bridge.toLoader])])])].filter(Boolean).sort((a, b) => a.localeCompare(b)))
 const previewProject = computed(() => { const result = projectSchema.safeParse({ ...form, id: form.id || form.slug, loaders: form.loaders.split(',').map(s => s.trim()), gameVersions: form.gameVersions.split(',').map(s => s.trim()), categories: [], keywords: [], iconUrls: [], gallery: [], versions: visualVersions.value, repositoryUrl: undefined, iconUrl: undefined, sourceUrl: undefined, issuesUrl: undefined, discordUrl: undefined, wikiUrl: undefined, donationUrls: [] }); return result.success ? result.data : null })
 const csv = (value: unknown) => String(value).split(',').map((item) => item.trim()).filter(Boolean); const metadataDrafts = ref<Record<string, string>>({}); const metadataText = (file: FileRecord) => metadataDrafts.value[file.id] ?? JSON.stringify(file.metadata ?? {}, null, 2); const updateMetadata = (file: FileRecord, value: string) => { metadataDrafts.value[file.id] = value; try { const parsed = JSON.parse(value); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) file.metadata = parsed } catch { /* preserve the draft until it becomes valid JSON */ } }
 watch(versionMode, (mode, previous) => { if (mode === 'source' && previous === 'visual') versionsJson.value = JSON.stringify(visualVersions.value, null, 2); if (mode === 'visual' && previous === 'source') { try { const parsed = JSON.parse(versionsJson.value); if (Array.isArray(parsed)) { visualVersions.value = parsed; jsonError.value = '' } } catch { jsonError.value = '源码 JSON 无法解析' } } })
