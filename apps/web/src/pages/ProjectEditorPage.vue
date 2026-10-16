@@ -12,18 +12,28 @@
         <q-separator />
         <q-tab-panels v-model="activeTab" animated keep-alive class="editor-panels">
           <q-tab-panel name="basic">
-            <FormSection title="基本信息" description="填写项目身份、展示资料和兼容范围。">
+            <FormSection title="项目身份" description="设置项目名称、地址和所有者。">
               <FormGrid>
                 <q-input v-model="form.title" outlined label="项目名称" required />
                 <q-input v-model="form.slug" outlined label="Slug" hint="只能使用小写字母、数字和短横线" required :disable="!isNew" />
                 <q-select v-if="isNew && organizations.length" v-model="form.ownerId" outlined label="项目所有者" emit-value map-options :options="ownerOptions" />
                 <q-select v-model="form.type" outlined label="项目类型" :options="types" emit-value map-options />
-                <q-input v-model="form.license" outlined label="兼容许可证标识" placeholder="MIT（兼容旧数据）" />
-                <q-input v-model="form.repositoryUrl" outlined label="源码仓库 URL" type="url" />
-                <q-input v-model="form.iconUrl" outlined label="主图标 URL" type="url" />
+              </FormGrid>
+            </FormSection>
+
+            <FormSection title="项目介绍与图标" description="编写项目简介并设置展示图标。">
+              <FormGrid>
+                <q-input v-model="form.description" class="form-grid__full" outlined type="textarea" autogrow label="项目描述" required />
+                <q-input v-model="form.iconUrl" outlined label="主图标 URL" />
                 <q-file :model-value="null" outlined label="上传本站图标" accept="image/*" @update:model-value="(value) => uploadAsset(value, 'icon')" />
                 <q-input v-model="form.iconUrls" class="form-grid__full" outlined label="更多图标 URL" hint="多个 URL 用逗号分隔" />
-                <q-input v-model="form.description" class="form-grid__full" outlined type="textarea" autogrow label="项目描述" required />
+              </FormGrid>
+            </FormSection>
+
+            <FormSection title="兼容范围与来源" description="声明支持的加载器和游戏版本，并填写许可证与源码仓库。">
+              <FormGrid>
+                <q-input v-model="form.license" outlined label="兼容许可证标识" placeholder="MIT（兼容旧数据）" />
+                <q-input v-model="form.repositoryUrl" outlined label="源码仓库 URL" type="url" />
                 <StringOptionSelect v-model="projectLoaders" :options="loaderOptions" multiple label="加载器" hint="可多选；搜索或输入新加载器后按 Enter 添加。" empty-label="输入加载器并按 Enter 添加。" />
                 <StringOptionSelect v-model="projectGameVersions" :options="gameVersionOptions" multiple label="游戏版本" hint="可多选；搜索或输入新版本后按 Enter 添加。" empty-label="输入版本并按 Enter 添加。" />
               </FormGrid>
