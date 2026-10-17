@@ -217,7 +217,62 @@ try {
       );
       CREATE INDEX IF NOT EXISTS download_events_project_idx ON download_events(project_slug);
     `)
-    db.prepare("INSERT OR REPLACE INTO app_meta (key, value, updated_at) VALUES ('schema_version', '8', ?)").run(new Date().toISOString())
+    // Keep the bootstrap database aligned with the runtime Drizzle schema and
+    // the latest migrations. SqliteAccountStore repeats these CREATE IF NOT
+    // EXISTS statements, so this remains safe for existing installations.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ygg_sessions (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        profile_id TEXT NOT NULL,
+        server_id TEXT NOT NULL,
+        ip TEXT,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS ygg_sessions_lookup_idx ON ygg_sessions(profile_id, server_id, expires_at);
+      CREATE TABLE IF NOT EXISTS ygg_revoked_tokens (
+        token_hash TEXT PRIMARY KEY,
+        account_id TEXT REFERENCES accounts(id) ON DELETE CASCADE,
+        revoked_at TEXT NOT NULL,
+        expires_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS ygg_revoked_tokens_expiry_idx ON ygg_revoked_tokens(expires_at);
+      CREATE TABLE IF NOT EXISTS mojang_oauth_tokens (
+        account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+        refresh_token_ciphertext TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        expires_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS project_publish_tokens (
+        id TEXT PRIMARY KEY,
+        project_slug TEXT NOT NULL,
+        account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        scopes TEXT NOT NULL DEFAULT '["release:write"]',
+        created_at TEXT NOT NULL,
+        revoked_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS project_publish_tokens_project_idx ON project_publish_tokens(project_slug, revoked_at);
+      CREATE TABLE IF NOT EXISTS publish_uploads (
+        id TEXT PRIMARY KEY,
+        project_slug TEXT NOT NULL,
+        account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        filename TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        sha256 TEXT,
+        content_type TEXT NOT NULL,
+        storage_key TEXT,
+        multipart_id TEXT,
+        status TEXT NOT NULL DEFAULT 'created',
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS publish_uploads_expiry_idx ON publish_uploads(status, expires_at);
+    `)
+    db.prepare("INSERT OR REPLACE INTO app_meta (key, value, updated_at) VALUES ('schema_version', '10', ?)").run(new Date().toISOString())
     db.close()
     console.log(`SQLite 数据库已初始化：${dbPath}`)
   }

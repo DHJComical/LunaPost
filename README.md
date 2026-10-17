@@ -101,6 +101,21 @@ pnpm modpost:db:init -- --mode self-hosted --database sqlite --public-url http:/
 
 Worker 部署时通过绑定注入等价配置（如 `STORAGE` 指向 R2、D1 数据库绑定）。
 
+后台的“文件存储”设置支持一个主存储和多个镜像存储。当前提供 `r2`（使用 Worker 的 `STORAGE` binding）和 `tencent_cos`（填写 endpoint、region、bucket、密钥）两种适配器；旧版单存储配置会自动迁移为一个主存储。`syncMode` 设为 `automatic` 时，上传先写入主存储，再通过 Worker 的 `waitUntil` 异步复制到所有启用镜像；设为 `manual` 时不会自动复制。
+
+管理员可以调用下面的接口补齐镜像，支持单对象、多个对象或整个项目的托管文件：
+
+```text
+POST /api/v1/admin/storage/sync
+{ "key": "publish/example/…/file.jar" }
+{ "projectSlug": "example", "providerIds": ["cos-apac"] }
+GET  /api/v1/admin/storage/sync?key=publish/example/…/file.jar
+```
+
+同步记录保存在站点设置中，包含每个镜像的 `synced`/`failed` 状态和时间。私有桶请留空 `publicBaseUrl`，下载接口会返回对象存储的短期签名地址，文件字节不会经过 Worker。
+
+浏览器直传目前支持腾讯 COS，必须将配置完整的 COS 设为**主存储**，并在直传设置中启用相应用户组。R2 binding 和本地磁盘不提供预签名上传地址。COS 桶保持私有即可；桶的 CORS 规则需允许站点来源（例如 `https://lunapost.sirrus.cc`）、`PUT` 方法和 `Content-Type` 请求头。浏览器向 COS 上传，本站仅签发 URL 并通过 HEAD 确认上传完成。`DIRECT_UPLOAD_UNAVAILABLE` 表示角色未开放直传或主存储不支持；`DIRECT_UPLOAD_SIGNING_FAILED` 表示生成签名失败，此时前端不会自动退回经 Worker 上传。后台主存储表单的修改会同步保存到主存储条目；多存储 JSON 中独立修改的镜像仍会保留。
+
 ## 账户与权限
 
 登录使用 HS256 JWT：浏览器侧保存在 HttpOnly Cookie，API 客户端也可以用登录响应中的 `accessToken` 走 `Authorization: Bearer <token>`。JWT 过期后，只要长期 Session 仍有效，`GET /api/v1/me` 会自动续发短期令牌。
@@ -227,7 +242,26 @@ GET /api/v1/projects/:slug/download?game_version=1.21.1&loader=fabric
 ## Minecraft 身份
 
 - **Mojang / Microsoft 绑定**：账户页通过设备码流程登录 Microsoft，同步 `minecraftUuid`、皮肤与披风；需要在站点设置中启用并配置 Microsoft Client ID。
-- **Yggdrasil 认证代理**：可选开启，提供 `/api/ygg/authserver/*`、`/api/ygg/sessionserver/*` 与档案查询接口，支持站内账户登录、上游聚合（按 `priority` 依次尝试）、令牌吊销与皮肤属性签名。相关设置在后台「Yggdrasil 认证」分区，数据表由 `migrations/0009_ygg.sql` 创建。
+- **Yggdrasil 认证代理**：可选开启，提供 `/api/ygg/authserver/*`、`/api/ygg/sessionserver/*` 与档案查询接口，支持站内账户登录、上游聚合（按 `priority` 依次尝试）、令牌吊销与皮肤属性签名。认证请求会先匹配站内账户，失败后按优先级转发到正版兼容的 Yggdrasil/LittleSkin 上游；上游令牌会被包装成本站短期令牌，`join`、`validate`、`invalidate`、`hasJoined` 和档案请求会继续透明转发，因此同一 MC 服务端可以融合多种账户来源。相关设置在后台「Yggdrasil 认证」分区，数据表由 `migrations/0009_ygg.sql` 创建。
+
+MC 服务端使用本站的融合验证时，把 `GET /api/ygg/meta` 的地址交给 authlib-injector；也可以读取 `GET /api/ygg/server-config` 获取完整配置。例如：
+
+```text
+java -javaagent:authlib-injector.jar=https://example.com/api/ygg/meta -jar server.jar
+```
+
+服务端仍应设置 `online-mode=true`，由 authlib-injector 接管认证。`/api/ygg/server-config` 会返回 metadata 地址、Java Agent 参数、服务端属性和当前启用的上游列表。后台上游的 `baseUrl` 应指向 Yggdrasil 服务根地址；需要拆分路由时可分别填写 `authBaseUrl`、`sessionBaseUrl`、`profileBaseUrl`、`nameLookupBaseUrl`。上游不可用时会继续尝试下一项，全部失败才返回认证失败。
+
+例如，同时接受 LittleSkin 和正版玩家，可以在后台填写类似配置（正版的 `hasJoined`、档案和名称查询走 Mojang，玩家登录仍由官方启动器完成）：
+
+```json
+[
+  { "id": "mojang", "name": "Mojang", "sessionBaseUrl": "https://sessionserver.mojang.com", "profileBaseUrl": "https://sessionserver.mojang.com", "nameLookupBaseUrl": "https://api.mojang.com", "enabled": true, "priority": 10 },
+  { "id": "littleskin", "name": "LittleSkin", "baseUrl": "https://littleskin.cn/csl", "enabled": true, "priority": 20 }
+]
+```
+
+官方 `authserver.mojang.com` 已不再提供可供代理代填的账号密码登录，因此不要把正版密码提交给本站；正版启动器完成登录后，服务端的 `hasJoined` 会自动依次查询已配置的上游。
 
 ## 内容审核与站点设置
 

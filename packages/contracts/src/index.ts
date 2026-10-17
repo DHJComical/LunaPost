@@ -226,6 +226,39 @@ export type DownloadSelection = {
 
 export type ModerationPolicy = 'none' | 'automatic' | 'full'
 export type ModerationFailMode = 'manual' | 'reject'
+export type GitHubActionsCacheSettings = {
+  sharedEnabled: boolean
+  proxyEnabled: boolean
+  ttlSeconds: number
+  apiKey: string
+}
+export type StorageProviderSettings = {
+  id?: string
+  name?: string
+  enabled?: boolean
+  primary?: boolean
+  priority?: number
+  provider: 'r2' | 'tencent_cos'
+  endpoint: string
+  region: string
+  bucket: string
+  accessKeyId: string
+  secretAccessKey: string
+  publicBaseUrl: string
+  pathPrefix: string
+}
+export type StorageSyncMode = 'manual' | 'automatic'
+export type StorageDirectUploadRole = 'user' | 'developer' | 'admin' | 'root'
+export type StorageDirectUploadSettings = {
+  enabled: boolean
+  roles: StorageDirectUploadRole[]
+  ttlSeconds: number
+}
+export type StorageSettings = StorageProviderSettings & {
+  syncMode: StorageSyncMode
+  providers: StorageProviderSettings[]
+  directUpload: StorageDirectUploadSettings
+}
 export type SiteSettings = {
   appearance: {
     roundedProjectIcons: boolean
@@ -259,6 +292,10 @@ export type SiteSettings = {
       id: string
       name: string
       baseUrl: string
+      authBaseUrl?: string
+      sessionBaseUrl?: string
+      profileBaseUrl?: string
+      nameLookupBaseUrl?: string
       enabled: boolean
       priority: number
     }>
@@ -268,6 +305,8 @@ export type SiteSettings = {
     clientId: string
     tenant: 'consumers' | 'common' | 'organizations'
   }
+  githubActions: GitHubActionsCacheSettings
+  storage: StorageSettings
 }
 
 export type AccountView = {

@@ -15,6 +15,7 @@
     "@andrea/contracts": "workspace:*",
     "@hono/node-server": "^1.14.1",
     "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.45.4",
     "hono": "^4.7.7"
   },
   "devDependencies": {

@@ -24,7 +24,7 @@ test('new and existing installations default to rounded icons; public settings o
   assert.equal((await read()).settings.appearance.roundedProjectIcons, true)
   const response = await app.request('/api/v1/settings', {}, env)
   assert.equal(response.status, 200)
-  assert.deepEqual(await response.json(), { settings: { appearance: { roundedProjectIcons: true, siteName: 'LunaPost', siteIconUrl: '/assets/projects/luna-launcher/icon.png' }, registration: { enabled: true, requireInviteCode: false, requireApproval: false } } })
+  assert.deepEqual(await response.json(), { settings: { appearance: { roundedProjectIcons: true, siteName: 'LunaPost', siteIconUrl: '/assets/projects/luna-launcher/icon.png' }, registration: { enabled: true, requireInviteCode: false, requireApproval: false }, githubActions: { sharedEnabled: false, proxyEnabled: false, ttlSeconds: 300 } } })
   assert.equal((await app.request('/api/v1/admin/settings', {}, env)).status, 403)
   assert.equal((await app.request('/api/v1/admin/settings', { method: 'PUT', body: JSON.stringify(settings) }, env)).status, 403)
 })
@@ -35,7 +35,7 @@ test('rounding choice persists and older clients do not reset it', async () => {
   settings.appearance.roundedProjectIcons = false
   assert.equal((await save(settings)).status, 200)
   const restarted = createApp({ authStore: store })
-  assert.deepEqual(await (await restarted.request('/api/v1/settings', {}, env)).json(), { settings: { appearance: { roundedProjectIcons: false, siteName: 'LunaPost', siteIconUrl: '/assets/projects/luna-launcher/icon.png' }, registration: { enabled: true, requireInviteCode: false, requireApproval: false } } })
+  assert.deepEqual(await (await restarted.request('/api/v1/settings', {}, env)).json(), { settings: { appearance: { roundedProjectIcons: false, siteName: 'LunaPost', siteIconUrl: '/assets/projects/luna-launcher/icon.png' }, registration: { enabled: true, requireInviteCode: false, requireApproval: false }, githubActions: { sharedEnabled: false, proxyEnabled: false, ttlSeconds: 300 } } })
   assert.equal((await save({ moderation: settings.moderation, registration: settings.registration, ygg: settings.ygg })).status, 200)
   assert.equal((await read()).settings.appearance.roundedProjectIcons, false)
   assert.deepEqual((await read()).settings.moderation, settings.moderation)
@@ -67,4 +67,32 @@ test('only root can change the site identity', async () => {
   const saved = (await root.read()).settings
   assert.equal(saved.appearance.siteName, 'LunaPost Studio')
   assert.equal(saved.appearance.siteIconUrl, 'https://example.com/site-icon.png')
+})
+
+test('storage provider settings persist while credentials stay hidden from admins', async () => {
+  const root = await fixture('root')
+  const settings = (await root.read()).settings
+  settings.storage = { provider: 'tencent_cos', endpoint: 'https://cos.example.test', region: 'ap-guangzhou', bucket: 'lunapost-1250000000', accessKeyId: 'secret-id', secretAccessKey: 'secret-key', publicBaseUrl: 'https://cdn.example.test', pathPrefix: 'files' }
+  assert.equal((await root.save(settings)).status, 200)
+  assert.equal((await root.read()).settings.storage.secretAccessKey, 'secret-key')
+  const admin = await fixture('admin')
+  await admin.store.setAppSetting('site_settings', JSON.stringify((await root.read()).settings))
+  const adminSettings = (await admin.read()).settings
+  assert.equal(adminSettings.storage.accessKeyId, '')
+  assert.equal(adminSettings.storage.secretAccessKey, '')
+})
+
+test('multiple storage providers and automatic sync mode persist', async () => {
+  const root = await fixture('root')
+  const settings = (await root.read()).settings
+  settings.storage.syncMode = 'automatic'
+  settings.storage.providers = [
+    { ...settings.storage.providers[0], id: 'r2-primary', primary: true, enabled: true },
+    { id: 'cos-mirror', name: 'COS mirror', provider: 'tencent_cos', primary: false, enabled: true, endpoint: 'https://cos.example.test', region: 'ap-guangzhou', bucket: 'bucket', accessKeyId: 'id', secretAccessKey: 'secret', publicBaseUrl: '', pathPrefix: 'mirror' },
+  ]
+  assert.equal((await root.save(settings)).status, 200)
+  const saved = (await root.read()).settings
+  assert.equal(saved.storage.syncMode, 'automatic')
+  assert.deepEqual(saved.storage.providers.map((item: any) => item.id), ['r2-primary', 'cos-mirror'])
+  assert.equal(saved.storage.providers[1].secretAccessKey, 'secret')
 })

@@ -17,7 +17,18 @@ const { t } = useI18n()
 const monacoEnabled = useMonacoEditor
 
 if (typeof globalThis !== 'undefined' && !(globalThis as typeof globalThis & { MonacoEnvironment?: unknown }).MonacoEnvironment) {
-  ;(globalThis as typeof globalThis & { MonacoEnvironment: monaco.Environment }).MonacoEnvironment = { getWorker: () => new Worker(new URL('../../node_modules/monaco-editor/esm/vs/editor/editor.worker.js', import.meta.url), { type: 'module' }) } as monaco.Environment
+  // Monaco sends language-service requests through the worker selected by this
+  // callback. Using editor.worker for every label makes JSON/CSS/HTML features
+  // call handlers that the generic worker does not provide.
+  ;(globalThis as typeof globalThis & { MonacoEnvironment: monaco.Environment }).MonacoEnvironment = {
+    getWorker: (_moduleId: string, label: string) => {
+      if (label === 'json') return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/language/json/json.worker.js', import.meta.url), { type: 'module' })
+      if (label === 'css' || label === 'scss' || label === 'less') return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/language/css/css.worker.js', import.meta.url), { type: 'module' })
+      if (label === 'html' || label === 'handlebars' || label === 'razor') return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/language/html/html.worker.js', import.meta.url), { type: 'module' })
+      if (label === 'typescript' || label === 'javascript') return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/language/typescript/ts.worker.js', import.meta.url), { type: 'module' })
+      return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/editor/editor.worker.js', import.meta.url), { type: 'module' })
+    },
+  } as monaco.Environment
 }
 const theme = () => isDark.value ? 'vs-dark' : 'vs'
 const format = async () => {
